@@ -1,0 +1,67 @@
+# Local development storage survives pod restarts through Kubesolo's local-path PVC.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: examples-registry
+  labels:
+    app.kubernetes.io/part-of: di-framework-kube-examples
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: examples-registry
+  labels:
+    app.kubernetes.io/part-of: di-framework-kube-examples
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: examples-registry
+  template:
+    metadata:
+      labels:
+        app: examples-registry
+    spec:
+      containers:
+        - name: registry
+          image: registry:3.1.1
+          ports:
+            - containerPort: 5000
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /v2/
+              port: 5000
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/registry
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: examples-registry
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: examples-registry
+  labels:
+    app.kubernetes.io/part-of: di-framework-kube-examples
+spec:
+  selector:
+    app: examples-registry
+  ports:
+    - name: registry
+      port: 5000
+      targetPort: 5000

@@ -1,0 +1,5 @@
+{
+  "name": "quotes",
+  "entry": "src/app.ts",
+  "output": "dist/quotes.wasm"
+}

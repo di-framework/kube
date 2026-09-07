@@ -71,6 +71,30 @@ di-framework-kube down --purge-cluster
 `--purge-cluster` is destructive. It is refused for clusters supplied with
 `--kubeconfig`.
 
+## Example applications
+
+The [examples-apps workspace](examples-apps/README.md) contains a greeter, product
+catalog, and quote API built with DI Framework. Deploy all three to this platform:
+
+```sh
+cd examples-apps
+bun install --frozen-lockfile
+bun run deploy
+bun run smoke
+```
+
+The workspace includes a local component registry, deployment configuration, and
+API checks that run both locally and against the deployed Wasm components.
+
+The examples require the pinned **DI Framework 5.2.8** toolchain and JCO
+`1.17.9` (WASI 0.2). In live testing against wasmCloud `2.8.0`, DI Framework
+`5.2.9`'s WASI 0.3 adapter returned HTTP 500 even though the operator reported
+the workloads ready. The QuickJS backend logged `expected future handle` when
+the adapter passed a JavaScript Promise instead of a WASI future handle.
+Keep the checked-in versions and lockfile until an updated toolchain passes
+`bun run smoke`, including the JSON POST checks. Version 5.2.8 passed all 23
+local and 23 live API checks without dependency patches.
+
 ## Existing clusters and Linux service mode
 
 Install onto an explicitly selected existing cluster:

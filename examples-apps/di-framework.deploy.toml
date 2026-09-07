@@ -1,0 +1,10 @@
+default-target = "kubesolo"
+
+[targets.kubesolo]
+kubeconfig = "${DI_KUBE_CONFIG}"
+namespace = "${DI_KUBE_NAMESPACE}"
+
+[targets.kubesolo.registry]
+push = "http://127.0.0.1:${DI_REGISTRY_PORT}/examples"
+pull = "examples-registry.${DI_KUBE_NAMESPACE}.svc.cluster.local:5000/examples"
+insecure = true

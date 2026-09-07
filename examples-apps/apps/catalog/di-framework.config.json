@@ -1,0 +1,5 @@
+{
+  "name": "catalog",
+  "entry": "src/app.ts",
+  "output": "dist/catalog.wasm"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@di-framework-kube-examples/greeter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@di-framework/core": "5.2.8",
+    "@di-framework/http": "5.2.8"
+  }
+}

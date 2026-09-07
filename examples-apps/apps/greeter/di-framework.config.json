@@ -1,0 +1,5 @@
+{
+  "name": "greeter",
+  "entry": "src/app.ts",
+  "output": "dist/greeter.wasm"
+}
