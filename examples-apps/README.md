@@ -1,26 +1,22 @@
 # DI Framework apps on Kubesolo
 
-Three TypeScript HTTP apps use DI Framework 5.2.10 from npm and compile into
+Three TypeScript HTTP apps use DI Framework 5.2.11 from npm and compile into
 WASI 0.3 components with its wasmCloud extension. Each default export is a Fetch
 router; the extension supplies the WASI adapter and generates the Kubernetes
 resources.
 
-Pin **5.2.10**, not 5.2.9 and not a `file:` sibling checkout. 5.2.10 is the first
-release whose wasmCloud plugin depends on `@di-framework/componentize-qjs`
-`0.4.4-di.2` (wasmtime 48 async import stubs). 5.2.9's WASI 0.3 adapter returned
-HTTP 500 on wasmCloud runtime-operator 2.8.0 (`expected future handle` in
-QuickJS) even when the operator reported the workloads ready. JCO comes from the
-plugin (`1.32.1`); do not add a separate JCO 1.17.9 freeze.
+Pin **5.2.11**, not 5.2.9, not 5.2.10, and not a `file:` sibling checkout.
+5.2.11 is the first release whose wasmCloud plugin both depends on
+`@di-framework/componentize-qjs` `0.4.4-di.2` (wasmtime 48 async import stubs)
+and polyfills WHATWG Fetch for QuickJS (`URLSearchParams` iteration and
+`Request.clone`). 5.2.9 returned HTTP 500 (`expected future handle`). 5.2.10
+500'd itty-router and POST `/quote`. JCO comes from the plugin (`1.32.1`); do
+not add a separate JCO 1.17.9 freeze.
 
 The operator chart stays **2.8.0**. Keep these examples HTTP-only: do not add
 postgres or KV bindings without matching host providers. `bun run smoke` must
 pass against the live components, including JSON POST `/quote`. Operator
 readiness alone does not prove the guest can serve a request.
-
-These apps are Fetch routers (`Response.json`, itty-router `request.content`).
-The qjs backend does not provide that API; the wasmCloud plugin polyfills it.
-Stock 5.2.10 still 500s on `for...of searchParams` and POST `clone().json()`
-until the polyfill follow-up ships.
 
 | App / HTTP Host | Requests | Demonstrates |
 | --- | --- | --- |
