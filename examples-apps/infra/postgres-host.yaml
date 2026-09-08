@@ -1,0 +1,9 @@
+# Native PostgreSQL plugin connection; credentials remain in a Kubernetes Secret.
+runtime:
+  env:
+    - name: WASH_POSTGRES_URL
+      valueFrom:
+        secretKeyRef:
+          name: examples-postgres-binding
+          key: url
+          optional: true

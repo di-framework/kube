@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 export interface ApiCase {
-  app: "greeter" | "catalog" | "quotes" | "node-runtime" | "node-crypto" | "node-network" | "node-http";
+  app: "config" | "secrets" | "keyvalue" | "blobstore" | "messaging" | "outgoing-http" | "postgres" | "greeter" | "catalog" | "quotes" | "node-runtime" | "node-crypto" | "node-network" | "node-http";
   liveOnly?: boolean;
   path: string;
   method?: string;
@@ -12,6 +12,27 @@ export interface ApiCase {
 }
 
 export const cases: ApiCase[] = [
+  {"app": "config", "path": "/health", "method": "GET", "liveOnly": true, "status": 200, "expected": {"app": "config", "status": "ok"}},
+  {"app": "config", "path": "/verify", "method": "POST", "liveOnly": true, "status": 200, "expected": {"message": "from-kubernetes-configmap", "merged": true, "missing": true}, "body": "{}"},
+  {"app": "config", "path": "/missing", "method": "GET", "liveOnly": true, "status": 404, "expected": {"error": "Not found"}},
+  {"app": "secrets", "path": "/health", "method": "GET", "liveOnly": true, "status": 200, "expected": {"app": "secrets", "status": "ok"}},
+  {"app": "secrets", "path": "/verify", "method": "POST", "liveOnly": true, "status": 200, "expected": {"revealed": true, "missing": true}, "body": "{}"},
+  {"app": "secrets", "path": "/missing", "method": "GET", "liveOnly": true, "status": 404, "expected": {"error": "Not found"}},
+  {"app": "keyvalue", "path": "/health", "method": "GET", "liveOnly": true, "status": 200, "expected": {"app": "keyvalue", "status": "ok"}},
+  {"app": "keyvalue", "path": "/verify", "method": "POST", "liveOnly": true, "status": 200, "expected": {"value": "from-redis", "updated": true, "deleted": true}, "body": "{}"},
+  {"app": "keyvalue", "path": "/missing", "method": "GET", "liveOnly": true, "status": 404, "expected": {"error": "Not found"}},
+  {"app": "blobstore", "path": "/health", "method": "GET", "liveOnly": true, "status": 200, "expected": {"app": "blobstore", "status": "ok"}},
+  {"app": "blobstore", "path": "/verify", "method": "POST", "liveOnly": true, "status": 200, "expected": {"value": "from-nats-object-store", "deleted": true}, "body": "{}"},
+  {"app": "blobstore", "path": "/missing", "method": "GET", "liveOnly": true, "status": 404, "expected": {"error": "Not found"}},
+  {"app": "messaging", "path": "/health", "method": "GET", "liveOnly": true, "status": 200, "expected": {"app": "messaging", "status": "ok"}},
+  {"app": "messaging", "path": "/verify", "method": "POST", "liveOnly": true, "status": 200, "expected": {"published": true, "replied": true}, "body": "{}"},
+  {"app": "messaging", "path": "/missing", "method": "GET", "liveOnly": true, "status": 404, "expected": {"error": "Not found"}},
+  {"app": "outgoing-http", "path": "/health", "method": "GET", "liveOnly": true, "status": 200, "expected": {"app": "outgoing-http", "status": "ok"}},
+  {"app": "outgoing-http", "path": "/verify", "method": "POST", "liveOnly": true, "status": 200, "expected": {"status": 200, "body": "from-http-binding"}, "body": "{}"},
+  {"app": "outgoing-http", "path": "/missing", "method": "GET", "liveOnly": true, "status": 404, "expected": {"error": "Not found"}},
+  { app: "postgres", path: "/health", liveOnly: true, status: 200, expected: { app: "postgres", status: "ok" } },
+  { app: "postgres", path: "/verify", method: "POST", body: "{}", liveOnly: true, status: 200, expected: { rejectsErrors: true, binding: "example-database", insert: true, read: true, update: true, delete: true } },
+  { app: "postgres", path: "/missing", liveOnly: true, status: 404, expected: { error: "Not found" } },
   { app: "node-runtime", path: "/verify", status: 200, expected: {
     concurrentContexts: ["request-20", "request-2"], cancelled: true,
     timerArgument: "timer-argument", intervalTicks: 2, immediate: true,

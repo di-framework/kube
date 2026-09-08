@@ -1,0 +1,5 @@
+{
+  "name": "postgres",
+  "entry": "src/app.ts",
+  "output": "dist/postgres.wasm"
+}

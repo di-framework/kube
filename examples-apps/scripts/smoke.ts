@@ -1,4 +1,4 @@
-import { outputs } from "./platform";
+import { outputs, kubectl, run } from "./platform";
 import { cases, requestFor, verify } from "../tests/api-cases";
 
 const platform = await outputs();
@@ -11,7 +11,10 @@ let failures = 0;
 for (const example of selected) {
   try {
     const response = await fetch(requestFor(example, platform.endpoints.http), { signal: AbortSignal.timeout(15_000) });
-    await verify(example, response);
+    const expected = example.app === "secrets" && example.path === "/verify"
+      ? { ...example.expected, digest: await run(kubectl(platform, "get", "configmap", "binding-secret-check", "-o", "jsonpath={.data.digest}"), { capture: true }) }
+      : example.expected;
+    await verify({ ...example, expected }, response);
     console.log(`PASS ${example.app}: ${example.method ?? "GET"} ${example.path} → ${response.status}`);
   } catch (error) {
     failures++;

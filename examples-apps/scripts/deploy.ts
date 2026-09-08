@@ -20,7 +20,7 @@ if (!Number.isInteger(httpPort) || httpPort < 1024 || httpPort > 65535) throw ne
 if (httpPort === port) throw new Error("DI_HTTP_PORT and DI_REGISTRY_PORT must be different");
 
 // Explicitly scoped to the selected di-framework-kube instance, never kubectl's current context.
-await run([binary, "up", "--name", instance, "--http-port", String(httpPort), "--allow-insecure-registries"]);
+await run([binary, "up", "--name", instance, "--http-port", String(httpPort), "--allow-insecure-registries", "--values", resolve(workspace, "infra/postgres-host.yaml")]);
 const platform = await outputs();
 await run(kubectl(platform, "apply", "-f", resolve(workspace, "infra/registry.yaml")));
 await run(kubectl(platform, "rollout", "status", "deployment/examples-registry", "--timeout=180s"));
@@ -33,6 +33,14 @@ if (selected.includes("node-network") || selected.includes("node-http")) {
     await Bun.write(resolve(workspace, "apps/node-network/fixtures/network.json"), JSON.stringify({ address }) + "\n");
   }
 }
+
+if (selected.includes("postgres")) {
+  const { provisionPostgres } = await import("./postgres");
+  await provisionPostgres(platform);
+}
+
+const { provisionBindings } = await import("./bindings");
+await provisionBindings(platform, selected);
 
 const forward = Bun.spawn(kubectl(platform, "port-forward", "--address=127.0.0.1", "service/examples-registry", `${port}:5000`), {
   stdout: "pipe", stderr: "inherit",
@@ -76,6 +84,12 @@ try {
       // The extension generates port 80; the Kubesolo profile listens on 9191.
       await run(kubectl(platform, "patch", "service", name, "--type=merge", "-p",
         JSON.stringify({ spec: { ports: [{ name: "http", port: 80, targetPort: 9191, protocol: "TCP" }] } })));
+      if (name === "outgoing-http") {
+        // Grant only the fixture endpoint; the runtime denies HTTP egress by default.
+        await run(kubectl(platform, "patch", "workloaddeployment", name, "--type=json", "-p",
+          JSON.stringify([{ op: "add", path: "/spec/template/spec/components/0/localResources",
+            value: { allowedHosts: ["http://binding-echo:8080"] } }])));
+      }
       // Operator readiness alone does not prove the guest can serve a request.
       let healthy = false;
       let detail = "no response";

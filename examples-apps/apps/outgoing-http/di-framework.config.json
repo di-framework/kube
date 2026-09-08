@@ -1,0 +1,5 @@
+{
+  "name": "outgoing-http",
+  "entry": "src/app.ts",
+  "output": "dist/outgoing-http.wasm"
+}

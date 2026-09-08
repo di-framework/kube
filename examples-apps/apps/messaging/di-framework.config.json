@@ -1,0 +1,5 @@
+{
+  "name": "messaging",
+  "entry": "src/app.ts",
+  "output": "dist/messaging.wasm"
+}
