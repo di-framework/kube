@@ -10,14 +10,13 @@
     "smoke": "bun scripts/smoke.ts"
   },
   "dependencies": {
-    "@di-framework/core": "5.2.8",
-    "@di-framework/http": "5.2.8"
+    "@di-framework/core": "5.2.10",
+    "@di-framework/http": "5.2.10"
   },
   "devDependencies": {
-    "@bytecodealliance/jco": "1.17.9",
-    "@di-framework/cli": "5.2.8",
-    "@di-framework/cli-extension": "5.2.8",
-    "@di-framework/cli-plugin-wasmcloud": "5.2.8",
+    "@di-framework/cli": "5.2.10",
+    "@di-framework/cli-extension": "5.2.10",
+    "@di-framework/cli-plugin-wasmcloud": "5.2.10",
     "@types/bun": "1.3.14",
     "rolldown": "1.2.7",
     "typescript": "5.9.3"

@@ -86,14 +86,20 @@ bun run smoke
 The workspace includes a local component registry, deployment configuration, and
 API checks that run both locally and against the deployed Wasm components.
 
-The examples require the pinned **DI Framework 5.2.8** toolchain and JCO
-`1.17.9` (WASI 0.2). In live testing against wasmCloud `2.8.0`, DI Framework
-`5.2.9`'s WASI 0.3 adapter returned HTTP 500 even though the operator reported
-the workloads ready. The QuickJS backend logged `expected future handle` when
-the adapter passed a JavaScript Promise instead of a WASI future handle.
-Keep the checked-in versions and lockfile until an updated toolchain passes
-`bun run smoke`, including the JSON POST checks. Version 5.2.8 passed all 23
-local and 23 live API checks without dependency patches.
+The examples pin **DI Framework 5.2.10** from npm. That release ships the WASI
+0.3 HTTP adapter with `@di-framework/componentize-qjs` `0.4.4-di.2`, which can
+stub imported async WIT functions. Do not use 5.2.9: its WASI 0.3 adapter
+returned HTTP 500 on wasmCloud runtime-operator `2.8.0` (`expected future
+handle` in QuickJS) even though the operator reported the workloads ready.
+Do not pin a `file:` sibling checkout. The wasmCloud chart stays `2.8.0`.
+The apps stay HTTP-only; they do not bind postgres or KV. `bun run smoke`
+must pass, including the JSON POST `/quote` checks.
+
+QuickJS does not implement WHATWG Fetch. The plugin polyfills `Request`,
+`Response`, and `URL` in front of `wasi:http/handler@0.3.0`. Stock 5.2.10's
+polyfill is missing `URLSearchParams` iteration and `Request.clone`, so a
+clean 5.2.10 install still 500s itty-router and POST `/quote` until that
+plugin follow-up is published.
 
 ## Existing clusters and Linux service mode
 
