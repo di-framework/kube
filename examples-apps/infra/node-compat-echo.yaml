@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-compat-echo
+data:
+  echo.py: |
+    import http.server
+    import socketserver
+    import threading
+
+    class HTTP(http.server.BaseHTTPRequestHandler):
+        protocol_version = 'HTTP/1.1'
+        def do_POST(self):
+            if self.path != '/echo' or self.headers.get('Transfer-Encoding') != 'chunked':
+                self.send_error(400, 'Expected POST /echo with chunked framing')
+                return
+            body = bytearray()
+            while True:
+                size = int(self.rfile.readline().split(b';')[0], 16)
+                if size == 0:
+                    while self.rfile.readline() != b'\r\n':
+                        pass
+                    break
+                body.extend(self.rfile.read(size))
+                if self.rfile.read(2) != b'\r\n' or len(body) > 4096:
+                    self.send_error(400)
+                    return
+            self.send_response(200)
+            self.send_header('Transfer-Encoding', 'chunked')
+            self.send_header('Connection', 'close')
+            self.end_headers()
+            for chunk in (body[:3], body[3:]):
+                if chunk:
+                    self.wfile.write(f'{len(chunk):x};probe=yes\r\n'.encode() + chunk + b'\r\n')
+                    self.wfile.flush()
+            self.wfile.write(b'0\r\nX-Probe: complete\r\n\r\n')
+            self.close_connection = True
+
+    class TCP(socketserver.StreamRequestHandler):
+        def handle(self):
+            self.request.settimeout(5)
+            self.wfile.write(self.rfile.readline(4096))
+
+    class UDP(socketserver.BaseRequestHandler):
+        def handle(self):
+            data, sock = self.request
+            sock.sendto(data, self.client_address)
+
+    servers = [http.server.ThreadingHTTPServer(('', 8080), HTTP),
+               socketserver.ThreadingTCPServer(('', 8081), TCP),
+               socketserver.ThreadingUDPServer(('', 8082), UDP)]
+    for server in servers:
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+    threading.Event().wait()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-compat-echo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: node-compat-echo }
+  template:
+    metadata:
+      labels: { app: node-compat-echo }
+    spec:
+      containers:
+        - name: echo
+          image: python:3.13.7-alpine3.22
+          command: [python, -u, /app/echo.py]
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: tcp, containerPort: 8081 }
+            - { name: udp, containerPort: 8082, protocol: UDP }
+          readinessProbe:
+            tcpSocket: { port: http }
+          resources:
+            requests: { cpu: 10m, memory: 24Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - { name: script, mountPath: /app, readOnly: true }
+      volumes:
+        - name: script
+          configMap: { name: node-compat-echo }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-compat-echo
+spec:
+  selector: { app: node-compat-echo }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+    - { name: tcp, port: 8081, targetPort: tcp }
+    - { name: udp, port: 8082, targetPort: udp, protocol: UDP }

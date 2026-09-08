@@ -25,6 +25,15 @@ const platform = await outputs();
 await run(kubectl(platform, "apply", "-f", resolve(workspace, "infra/registry.yaml")));
 await run(kubectl(platform, "rollout", "status", "deployment/examples-registry", "--timeout=180s"));
 
+if (selected.includes("node-network") || selected.includes("node-http")) {
+  await run(kubectl(platform, "apply", "-f", resolve(workspace, "infra/node-compat-echo.yaml")));
+  await run(kubectl(platform, "rollout", "status", "deployment/node-compat-echo", "--timeout=180s"));
+  if (selected.includes("node-network")) {
+    const address = await run(kubectl(platform, "get", "service", "node-compat-echo", "-o", "jsonpath={.spec.clusterIP}"), { capture: true });
+    await Bun.write(resolve(workspace, "apps/node-network/fixtures/network.json"), JSON.stringify({ address }) + "\n");
+  }
+}
+
 const forward = Bun.spawn(kubectl(platform, "port-forward", "--address=127.0.0.1", "service/examples-registry", `${port}:5000`), {
   stdout: "pipe", stderr: "inherit",
 });
@@ -59,31 +68,40 @@ try {
     DI_KUBE_NAMESPACE: platform.namespace,
     DI_REGISTRY_PORT: String(port),
   };
+  const deployed: string[] = [];
+  const failed: string[] = [];
   for (const name of selected) {
-    await run([resolve(workspace, "node_modules/.bin/di-framework"), "wasmcloud", "deploy", name, "--yes"], { env });
-    // The extension generates port 80; the Kubesolo profile listens on 9191.
-    await run(kubectl(platform, "patch", "service", name, "--type=merge", "-p",
-      JSON.stringify({ spec: { ports: [{ name: "http", port: 80, targetPort: 9191, protocol: "TCP" }] } })));
-    // Operator readiness alone does not prove the guest can serve a request.
-    let healthy = false;
-    let detail = "no response";
-    const deadline = Date.now() + 120_000;
-    while (Date.now() < deadline) {
-      try {
-        const response = await fetch(new URL("/health", platform.endpoints.http), {
-          headers: { Host: name }, signal: AbortSignal.timeout(5_000),
-        });
-        const body = await response.text();
-        detail = `HTTP ${response.status}: ${body}`;
-        if (response.ok && JSON.parse(body).status === "ok") { healthy = true; break; }
-      } catch (error) { detail = String(error); }
-      await Bun.sleep(1_000);
+    try {
+      await run([resolve(workspace, "node_modules/.bin/di-framework"), "wasmcloud", "deploy", name, "--yes"], { env });
+      // The extension generates port 80; the Kubesolo profile listens on 9191.
+      await run(kubectl(platform, "patch", "service", name, "--type=merge", "-p",
+        JSON.stringify({ spec: { ports: [{ name: "http", port: 80, targetPort: 9191, protocol: "TCP" }] } })));
+      // Operator readiness alone does not prove the guest can serve a request.
+      let healthy = false;
+      let detail = "no response";
+      const deadline = Date.now() + 120_000;
+      while (Date.now() < deadline) {
+        try {
+          const response = await fetch(new URL("/health", platform.endpoints.http), {
+            headers: { Host: name }, signal: AbortSignal.timeout(5_000),
+          });
+          const body = await response.text();
+          detail = `HTTP ${response.status}: ${body}`;
+          if (response.ok && JSON.parse(body).status === "ok") { healthy = true; break; }
+        } catch (error) { detail = String(error); }
+        await Bun.sleep(1_000);
+      }
+      if (!healthy) throw new Error(`${name} failed its live /health check: ${detail}`);
+      console.log(`${name}: live /health passed`);
+      deployed.push(name);
+    } catch (error) {
+      failed.push(name);
+      console.error(`${name}: deployment failed: ${error}`);
     }
-    if (!healthy) throw new Error(`${name} failed its live /health check: ${detail}`);
-    console.log(`${name}: live /health passed`);
   }
-  console.log(`\nDeployed ${selected.join(", ")} to ${instance}. HTTP: ${platform.endpoints.http}`);
+  console.log(`\nDeployed ${deployed.join(", ") || "no apps"} to ${instance}. HTTP: ${platform.endpoints.http}`);
   console.log("Run bun run smoke to verify the live APIs.");
+  if (failed.length) throw new Error(`Failed to deploy: ${failed.join(", ")}`);
 } finally {
   stop();
   await forward.exited;

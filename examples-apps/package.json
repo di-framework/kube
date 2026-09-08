@@ -2,7 +2,9 @@
   "name": "di-framework-kube-examples",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "check": "tsc --noEmit",
     "test": "bun test",
@@ -10,15 +12,22 @@
     "smoke": "bun scripts/smoke.ts"
   },
   "dependencies": {
-    "@di-framework/core": "5.2.11",
-    "@di-framework/http": "5.2.11"
+    "@di-framework/core": "5.2.13",
+    "@di-framework/http": "5.2.13"
   },
   "devDependencies": {
-    "@di-framework/cli": "5.2.11",
-    "@di-framework/cli-extension": "5.2.11",
-    "@di-framework/cli-plugin-wasmcloud": "5.2.11",
+    "@di-framework/cli": "5.2.13",
+    "@di-framework/cli-extension": "5.2.13",
+    "@di-framework/cli-plugin-wasmcloud": "5.2.13",
     "@types/bun": "1.3.14",
     "rolldown": "1.2.7",
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "@di-framework/core": "5.2.13",
+    "@di-framework/http": "5.2.13",
+    "@di-framework/cli": "5.2.13",
+    "@di-framework/cli-extension": "5.2.13",
+    "@di-framework/cli-plugin-wasmcloud": "5.2.13"
   }
 }

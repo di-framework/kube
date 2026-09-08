@@ -1,0 +1,5 @@
+{
+  "name": "node-runtime",
+  "entry": "src/app.ts",
+  "output": "dist/node-runtime.wasm"
+}
