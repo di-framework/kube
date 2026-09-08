@@ -5,13 +5,13 @@
     "": {
       "name": "di-framework-kube-examples",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
       },
       "devDependencies": {
-        "@di-framework/cli": "5.2.13",
-        "@di-framework/cli-extension": "5.2.13",
-        "@di-framework/cli-plugin-wasmcloud": "5.2.13",
+        "@di-framework/cli": "5.3.0",
+        "@di-framework/cli-extension": "5.3.0",
+        "@di-framework/cli-plugin-wasmcloud": "5.3.0",
         "@types/bun": "1.3.14",
         "rolldown": "1.2.7",
         "typescript": "5.9.3",
@@ -21,131 +21,128 @@
       "name": "@di-framework-kube-examples/blobstore",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
-        "@di-framework/wasmcloud": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
+        "@di-framework/wasmcloud": "5.3.0",
       },
     },
     "apps/catalog": {
       "name": "@di-framework-kube-examples/catalog",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
       },
     },
     "apps/config": {
       "name": "@di-framework-kube-examples/config",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
-        "@di-framework/wasmcloud": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
+        "@di-framework/wasmcloud": "5.3.0",
       },
     },
     "apps/greeter": {
       "name": "@di-framework-kube-examples/greeter",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
       },
     },
     "apps/keyvalue": {
       "name": "@di-framework-kube-examples/keyvalue",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
-        "@di-framework/wasmcloud": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
+        "@di-framework/wasmcloud": "5.3.0",
       },
     },
     "apps/messaging": {
       "name": "@di-framework-kube-examples/messaging",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
-        "@di-framework/wasmcloud": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
+        "@di-framework/wasmcloud": "5.3.0",
       },
     },
     "apps/node-crypto": {
       "name": "@di-framework-kube-examples/node-crypto",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
       },
     },
     "apps/node-http": {
       "name": "@di-framework-kube-examples/node-http",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
       },
     },
     "apps/node-network": {
       "name": "@di-framework-kube-examples/node-network",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
       },
     },
     "apps/node-runtime": {
       "name": "@di-framework-kube-examples/node-runtime",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
       },
     },
     "apps/outgoing-http": {
       "name": "@di-framework-kube-examples/outgoing-http",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
-        "@di-framework/wasmcloud": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
+        "@di-framework/wasmcloud": "5.3.0",
       },
     },
     "apps/postgres": {
       "name": "@di-framework-kube-examples/postgres",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
-        "@di-framework/wasmcloud": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
+        "@di-framework/wasmcloud": "5.3.0",
       },
     },
     "apps/quotes": {
       "name": "@di-framework-kube-examples/quotes",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
       },
     },
     "apps/secrets": {
       "name": "@di-framework-kube-examples/secrets",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.2.13",
-        "@di-framework/http": "5.2.13",
-        "@di-framework/wasmcloud": "5.2.13",
+        "@di-framework/core": "5.3.0",
+        "@di-framework/http": "5.3.0",
+        "@di-framework/wasmcloud": "5.3.0",
       },
     },
   },
-  "patchedDependencies": {
-    "@di-framework/cli-plugin-wasmcloud@5.2.13": "patches/@di-framework%2Fcli-plugin-wasmcloud@5.2.13.patch",
-  },
   "overrides": {
-    "@di-framework/cli": "5.2.13",
-    "@di-framework/cli-extension": "5.2.13",
-    "@di-framework/cli-plugin-wasmcloud": "5.2.13",
-    "@di-framework/core": "5.2.13",
-    "@di-framework/http": "5.2.13",
+    "@di-framework/cli": "5.3.0",
+    "@di-framework/cli-extension": "5.3.0",
+    "@di-framework/cli-plugin-wasmcloud": "5.3.0",
+    "@di-framework/core": "5.3.0",
+    "@di-framework/http": "5.3.0",
   },
   "packages": {
     "@andreiltd/componentize-qjs-binding-darwin-arm64": ["@andreiltd/componentize-qjs-binding-darwin-arm64@0.4.4", "", { "os": "darwin", "cpu": "arm64" }, "sha512-Qufqt1QmpILYcwVbFUGvCaAAzoTgq8o62lg4ayB9lYjdt2zvB0uMljonvC8e5IkmXWGuf/B+KucFD5M4OE2ufg=="],
@@ -280,21 +277,21 @@
 
     "@di-framework-kube-examples/secrets": ["@di-framework-kube-examples/secrets@workspace:apps/secrets"],
 
-    "@di-framework/cli": ["@di-framework/cli@5.2.13", "", { "dependencies": { "@di-framework/cli-extension": "^5", "@di-framework/codegen": "^5", "bun": "^1.3.14" }, "peerDependencies": { "typescript": "^5" }, "bin": { "di-framework": "main.ts" } }, "sha512-Fsan0B01HXy7pXaBZhVNYhtwAD54qvc4QRqRBdTw6+tOOyZ9Z3dvkhM4edcZ68vZlNRLMQQ1mD2jsM7ZI5dX/A=="],
+    "@di-framework/cli": ["@di-framework/cli@5.3.0", "", { "dependencies": { "@di-framework/cli-extension": "^5", "@di-framework/codegen": "^5", "bun": "^1.3.14" }, "peerDependencies": { "typescript": "^5" }, "bin": { "di-framework": "main.ts" } }, "sha512-0M1ZogHI+juTgt7w5dwnBo7zty+VLRkIPvAw5CcCk1ZiYp8OKksVOldBGmICYsf+W7UKsEtxPmAvjx41bf1O8Q=="],
 
-    "@di-framework/cli-extension": ["@di-framework/cli-extension@5.2.13", "", { "peerDependencies": { "typescript": "^5" } }, "sha512-TluJs2OX6qK33kWjPRuw1nQ65Q4sBhBlrFVUst0LozCcmgwnI96ojgwC2KRlPJA7y7BHZJw9HvG707xhXBENEw=="],
+    "@di-framework/cli-extension": ["@di-framework/cli-extension@5.3.0", "", { "peerDependencies": { "typescript": "^5" } }, "sha512-3dEAeKL9hJL/nm75A29BPs/JdFgujN0yIJqn6AC1p6irXCxuCvZCc35Jv7GBhbBOL/ZHYjUjgfGoRWZCvoAuDQ=="],
 
-    "@di-framework/cli-plugin-wasmcloud": ["@di-framework/cli-plugin-wasmcloud@5.2.13", "", { "dependencies": { "@babel/core": "7.29.7", "@babel/plugin-transform-async-to-generator": "7.29.7", "@bytecodealliance/jco": "1.32.1", "@di-framework/cli-extension": "^5", "@di-framework/componentize-qjs": "0.4.4-di.2", "@noble/ciphers": "2.4.0", "@noble/curves": "2.4.0", "@noble/hashes": "2.4.0", "rolldown": "1.2.7", "typescript": "^5", "unenv": "2.0.0-rc.24" } }, "sha512-a2NAapfgYb6leA8nWPFkrcNiibmjPuHWDDQHb2+I2wtE3UchRfss4RcvIAyJsF/bAykVItoCrzubcAMlK4kd3Q=="],
+    "@di-framework/cli-plugin-wasmcloud": ["@di-framework/cli-plugin-wasmcloud@5.3.0", "", { "dependencies": { "@babel/core": "7.29.7", "@babel/plugin-transform-async-to-generator": "7.29.7", "@bytecodealliance/jco": "1.32.1", "@di-framework/cli-extension": "^5", "@di-framework/componentize-qjs": "0.4.4-di.2", "@noble/ciphers": "2.4.0", "@noble/curves": "2.4.0", "@noble/hashes": "2.4.0", "rolldown": "1.2.7", "typescript": "^5", "unenv": "2.0.0-rc.24" } }, "sha512-kbd7j4iQW97/Fb23b9ma4hDdtTRkphibjmpv/ELWHj/wBO6wmKjIiF9BB4rZsaxwQZSL3Pzxm1tkboTmyU+aUg=="],
 
     "@di-framework/codegen": ["@di-framework/codegen@5.2.9", "", { "peerDependencies": { "@di-framework/core": "^5", "typescript": "^5" } }, "sha512-SwxEQqn7ZH0KP2IayOkp80eC6yDBeYbMzf9kKe6xy/Lj+6eRrejSu4RCUdvNHSaZNy1j/dK0Z7KDnwdC7BHWIQ=="],
 
     "@di-framework/componentize-qjs": ["@di-framework/componentize-qjs@0.4.4-di.2", "", { "optionalDependencies": { "componentize-qjs-darwin-arm64": "npm:@di-framework/componentize-qjs@0.4.4-di.2-darwin-arm64", "componentize-qjs-darwin-x64": "npm:@di-framework/componentize-qjs@0.4.4-di.2-darwin-x64", "componentize-qjs-linux-arm64": "npm:@di-framework/componentize-qjs@0.4.4-di.2-linux-arm64", "componentize-qjs-linux-x64": "npm:@di-framework/componentize-qjs@0.4.4-di.2-linux-x64", "componentize-qjs-win32-x64": "npm:@di-framework/componentize-qjs@0.4.4-di.2-win32-x64" }, "bin": { "componentize-qjs": "bin/componentize-qjs.cjs" } }, "sha512-gJSHOIyJMxdIkoLZyxEz8jaThFLV2IQ/6in/rsQ8Yiw6bVXeaEK0DWRyuVCdRVgcZD4aEKKZUS11LmfFQi21qw=="],
 
-    "@di-framework/core": ["@di-framework/core@5.2.13", "", { "peerDependencies": { "typescript": "^5" } }, "sha512-hy7aQQuSdkdm1a5nZoqHDsfMB7knBbQ9+k9iSVdQM4B4pch7w4G+Ue+ZU+Pb1pdRE1RXikTlCBkyZk+giosoMA=="],
+    "@di-framework/core": ["@di-framework/core@5.3.0", "", { "peerDependencies": { "typescript": "^5" } }, "sha512-Do3o/Alo3IJwb+yQX56Z2QPNBi6qj5kw7/mWwG22hdkCeojf8xyp4a7XP/P4wgFXc39/tMuZBV3oa7zRUqSMhw=="],
 
-    "@di-framework/http": ["@di-framework/http@5.2.13", "", { "dependencies": { "itty-router": "^5.0.22" }, "peerDependencies": { "@di-framework/core": "^5", "typescript": "^5" } }, "sha512-YQYEVovbsqYHT0Uh4xNcj1lCdJ1yY7V8CoPQrhlQBNoFr2vVl41gDR2duG36Eghd8d9aG2cdOPfzG8ny+K1Jmg=="],
+    "@di-framework/http": ["@di-framework/http@5.3.0", "", { "dependencies": { "itty-router": "^5.0.22" }, "peerDependencies": { "@di-framework/core": "^5", "typescript": "^5" } }, "sha512-50aig4GynCF9zooYB+Fkf+dSVO2zm4wMGXImam1LjRUsgTHzoe1hwBDfhFhPQV1lxJvK4Le0nHtKpwfpqAwjkQ=="],
 
-    "@di-framework/wasmcloud": ["@di-framework/wasmcloud@5.2.13", "", { "peerDependencies": { "@di-framework/core": "^5", "typescript": "^5" } }, "sha512-mqRG5QzRlRKin2gIXShc6uUpY4akkunFQMooNsIc4kUOwsAyiKs3Y9xkMFnOPn+c+2cnoXK4vD9jF9NYw4MRbA=="],
+    "@di-framework/wasmcloud": ["@di-framework/wasmcloud@5.3.0", "", { "peerDependencies": { "@di-framework/core": "^5", "typescript": "^5" } }, "sha512-u1LOEyrw9QLx1w2YVgFTVILTJ+NXTZ3BTtlrzt5kjtt9bBl3NOLWkNAH62MOz78c7yyGq9ALAemw5UK/fa4clw=="],
 
     "@emnapi/core": ["@emnapi/core@1.11.1", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.2", "tslib": "^2.4.0" } }, "sha512-RSvbQmHzdKzNsLYa/wHrbc3KN4sYLKAdPZxqiM2HATqv/SBk2/ENSHpvXGaLOMcsAyz0poEGqkmmKYG3OWiJEQ=="],
 
