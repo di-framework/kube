@@ -1,0 +1,5 @@
+{
+  "name": "node-crypto",
+  "entry": "src/app.ts",
+  "output": "dist/node-crypto.wasm"
+}

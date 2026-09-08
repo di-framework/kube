@@ -3,4 +3,8 @@
 coverage.out
 *.log
 .DS_Store
+.idea
 
+
+# Generated cluster address embedded only in the network verification guest.
+examples-apps/apps/node-network/fixtures/network.json

@@ -74,7 +74,8 @@ di-framework-kube down --purge-cluster
 ## Example applications
 
 The [examples-apps workspace](examples-apps/README.md) contains a greeter, product
-catalog, and quote API built with DI Framework. Deploy all three to this platform:
+catalog, quote API, and four Node compatibility probes for DI Framework 5.2.13.
+Install dependencies and deploy all seven to this platform:
 
 ```sh
 cd examples-apps
@@ -86,14 +87,13 @@ bun run smoke
 The workspace includes a local component registry, deployment configuration, and
 API checks that run both locally and against the deployed Wasm components.
 
-The examples pin **DI Framework 5.2.11** from npm. That release ships the WASI
-0.3 HTTP adapter with `@di-framework/componentize-qjs` `0.4.4-di.2` (async WIT
-import stubs) and a qjs Fetch polyfill that itty-router and POST bodies need.
-Do not use 5.2.9 (WASI 0.3 adapter returned HTTP 500: `expected future handle`)
-or 5.2.10 (qjs `URLSearchParams` / `Request.clone` gaps 500'd live Fetch).
-Do not pin a `file:` sibling checkout. The wasmCloud chart stays `2.8.0`.
-The apps stay HTTP-only; they do not bind postgres or KV. `bun run smoke`
-must pass, including the JSON POST `/quote` checks.
+The examples pin core, HTTP, the CLI, CLI extension, and wasmCloud plugin to
+`5.2.13`. The lockfile resolves these packages from the registry.
+The probes exercise runtime APIs, crypto reference vectors, and HTTP/TCP/UDP over
+WASI sockets, using a cluster-local echo service and an explicit DNS allowlist.
+See the [published 5.2.12 baseline](examples-apps/verification-5.2.12.md) and
+[local verification report](examples-apps/verification-local.md).
+The wasmCloud chart stays `2.8.0`; no postgres or KV providers are required.
 
 ## Existing clusters and Linux service mode
 

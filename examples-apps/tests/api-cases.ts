@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 
 export interface ApiCase {
-  app: "greeter" | "catalog" | "quotes";
+  app: "greeter" | "catalog" | "quotes" | "node-runtime" | "node-crypto" | "node-network" | "node-http";
+  liveOnly?: boolean;
   path: string;
   method?: string;
   body?: string;
@@ -11,7 +12,32 @@ export interface ApiCase {
 }
 
 export const cases: ApiCase[] = [
-  ...(["greeter", "catalog", "quotes"] as const).map((app) => ({
+  { app: "node-runtime", path: "/verify", status: 200, expected: {
+    concurrentContexts: ["request-20", "request-2"], cancelled: true,
+    timerArgument: "timer-argument", intervalTicks: 2, immediate: true,
+  } },
+  { app: "node-network", path: "/verify/ip", liveOnly: true, status: 200, expected: { tcp: "hello wasm\n", udp: "hello wasm" } },
+  { app: "node-http", path: "/verify", liveOnly: true, status: 200, expected: { http: "hello wasm" } },
+  { app: "node-runtime", path: "/verify", status: 200, expected: {
+    settings: { message: "Hello from a seeded file", release: "5.2.12" },
+    missingFile: "ENOENT", missingModule: "MODULE_NOT_FOUND", roundtrip: true, environment: true,
+    buffer: "V2FzbSDinJM=", normalizedPath: "/fixtures/settings.json",
+  } },
+  { app: "node-runtime", path: "/verify", status: 200, expected: { context: "request-512", contextRestored: true } },
+  { app: "node-runtime", path: "/verify", status: 200, expected: { timersAvailable: true } },
+  { app: "node-runtime", path: "/verify", liveOnly: true, status: 200, expected: { runtime: { arch: "wasm32", cwd: "/" } } },
+  { app: "node-crypto", path: "/verify", status: 200, expected: {
+    // Reference vectors generated with native Node 22, not the guest implementation.
+    sha256: "136f0dec77ef3c5570737642efa4c7e150d23a492a37fc5b2eff183ef7084f02",
+    hmac: "19650dcf8ec51f4edeabb67aebf84549ab4e8ec863085ee67871c0be0ceb2139",
+    webHmac: "19650dcf8ec51f4edeabb67aebf84549ab4e8ec863085ee67871c0be0ceb2139",
+    hkdf: "d04ae61cf905392b403863170ae20f8a",
+    ciphertext: "6bedb6a20f96d4f380450f2b3e874420b8931b8d02bdce1fee7c",
+    decrypted: "hello wasm", tamperRejected: true, hmacVerified: true, ecdh: true,
+    random: true, uuid: true, boundaryRejected: true, randomInt: true,
+  } },
+  { app: "node-network", path: "/verify", liveOnly: true, status: 200, expected: { tcp: "hello wasm\n", udp: "hello wasm" } },
+  ...(["greeter", "catalog", "quotes", "node-runtime", "node-crypto", "node-network", "node-http"] as const).map((app) => ({
     app, path: "/health", status: 200, expected: { app, status: "ok" },
   })),
   { app: "greeter", path: "/greet/Ada", status: 200, expected: { message: "Hello, Ada!", language: "en" } },
@@ -30,7 +56,7 @@ export const cases: ApiCase[] = [
   { app: "quotes", path: "/quote", method: "POST", body: '{"items":[{"sku":"missing","quantity":1}]}', status: 400, expected: { error: "Unknown product: missing" } },
   { app: "quotes", path: "/quote", method: "POST", body: "null", status: 400, expected: { error: "Expected an object with an items array" } },
   { app: "quotes", path: "/quote", method: "POST", body: "{", status: 400, expected: {} },
-  ...(["greeter", "catalog", "quotes"] as const).map((app) => ({
+  ...(["greeter", "catalog", "quotes", "node-runtime", "node-crypto", "node-network", "node-http"] as const).map((app) => ({
     app, path: "/missing", status: 404, expected: { error: "Not found" },
   })),
 ];

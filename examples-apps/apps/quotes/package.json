@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@di-framework/core": "5.2.11",
-    "@di-framework/http": "5.2.11"
+    "@di-framework/core": "5.2.13",
+    "@di-framework/http": "5.2.13"
   }
 }
