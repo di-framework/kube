@@ -1,0 +1,5 @@
+{
+  "name": "blobstore",
+  "entry": "src/app.ts",
+  "output": "dist/blobstore.wasm"
+}

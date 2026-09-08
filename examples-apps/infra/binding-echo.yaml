@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: binding-echo
+data:
+  echo.py: |
+    import http.server
+    import json
+    import socket
+    import ssl
+    import threading
+    import time
+
+    ready = threading.Event()
+    class HTTP(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/ready' and not ready.is_set():
+                self.send_error(503)
+                return
+            body = b'from-http-binding'
+            self.send_response(200)
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    def broker():
+        while True:
+            try:
+                with socket.create_connection(('nats', 4222), timeout=5) as raw:
+                    info = bytearray()
+                    while not info.endswith(b'\r\n'):
+                        chunk = raw.recv(1)
+                        if not chunk:
+                            raise OSError('NATS disconnected before INFO')
+                        info.extend(chunk)
+                    context = ssl.create_default_context(cafile='/data-cert/ca.crt')
+                    context.load_cert_chain('/data-cert/tls.crt', '/data-cert/tls.key')
+                    sock = context.wrap_socket(raw, server_hostname='nats')
+                    sock.settimeout(None)
+                    reader = sock.makefile('rb')
+                    sock.sendall(b'CONNECT {"verbose":false}\r\nSUB bindings.publish 1\r\nSUB bindings.echo 2\r\nPING\r\n')
+                    published = set()
+                    while True:
+                        line = reader.readline()
+                        if not line:
+                            raise OSError('NATS disconnected')
+                        parts = line.strip().split()
+                        if parts[0] == b'PING':
+                            sock.sendall(b'PONG\r\n')
+                        elif parts[0] == b'PONG':
+                            ready.set()
+                        elif parts[0] == b'MSG':
+                            size = int(parts[-1])
+                            data = reader.read(size)
+                            reader.read(2)
+                            token = data.decode()
+                            if parts[1] == b'bindings.publish':
+                                if len(published) > 10000:
+                                    published.clear()
+                                published.add(token)
+                            elif len(parts) == 5:
+                                body = json.dumps({'token': token, 'published': token if token in published else None}).encode()
+                                sock.sendall(b'PUB ' + parts[3] + b' ' + str(len(body)).encode() + b'\r\n' + body + b'\r\n')
+                                published.discard(token)
+            except (OSError, ValueError):
+                ready.clear()
+                time.sleep(1)
+
+    threading.Thread(target=broker, daemon=True).start()
+    http.server.ThreadingHTTPServer(('', 8080), HTTP).serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: binding-echo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: binding-echo }
+  template:
+    metadata:
+      labels: { app: binding-echo }
+    spec:
+      containers:
+        - name: echo
+          image: python:3.13.7-alpine3.22
+          command: [python, -u, /app/echo.py]
+          ports: [{ containerPort: 8080 }]
+          readinessProbe:
+            httpGet: { path: /ready, port: 8080 }
+          resources:
+            requests: { cpu: 10m, memory: 24Mi }
+            limits: { memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: script, mountPath: /app, readOnly: true }
+            - { name: data-cert, mountPath: /data-cert, readOnly: true }
+      volumes:
+        - name: data-cert
+          secret: { secretName: wasmcloud-data-tls }
+        - name: script
+          configMap: { name: binding-echo }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: binding-echo
+spec:
+  selector: { app: binding-echo }
+  ports: [{ port: 8080, targetPort: 8080 }]

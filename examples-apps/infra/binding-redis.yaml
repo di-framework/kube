@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: binding-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: binding-redis }
+  template:
+    metadata:
+      labels: { app: binding-redis }
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.4.5-alpine
+          ports: [{ containerPort: 6379 }]
+          readinessProbe:
+            exec: { command: [redis-cli, ping] }
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: binding-redis
+spec:
+  selector: { app: binding-redis }
+  ports: [{ port: 6379, targetPort: 6379 }]

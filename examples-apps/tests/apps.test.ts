@@ -12,14 +12,16 @@ import { cases, requestFor, verify } from "./api-cases";
 
 const apps = { greeter, catalog, quotes, "node-runtime": runtime, "node-crypto": crypto, "node-network": network, "node-http": http };
 for (const [index, example] of cases.entries()) {
-  if (example.liveOnly) continue;
+  if (example.liveOnly || example.app === "postgres") continue;
+  if (!(example.app in apps)) throw new Error(`Missing local test app: ${example.app}`);
+  const app = apps[example.app as keyof typeof apps];
   test(`${index + 1}: ${example.app} ${example.method ?? "GET"} ${example.path} → ${example.status}`, async () => {
     const previous = process.cwd();
     const directory = resolve(import.meta.dir, "../apps", example.app);
     try {
       // Native fs resolves the same relative fixture paths as the seeded guest fs.
       process.chdir(directory);
-      await verify(example, await apps[example.app].fetch(requestFor(example)));
+      await verify(example, await app.fetch(requestFor(example)));
     } finally {
       process.chdir(previous);
       if (example.app === "node-runtime") rmSync(resolve(directory, "fixtures/roundtrip.txt"), { force: true });

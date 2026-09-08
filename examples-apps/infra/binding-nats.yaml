@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: binding-nats
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: binding-nats }
+  template:
+    metadata:
+      labels: { app: binding-nats }
+    spec:
+      containers:
+        - name: nats
+          image: nats:2.12.8-alpine
+          args: ["-js", "-sd", "/data"]
+          ports: [{ containerPort: 4222 }]
+          readinessProbe:
+            tcpSocket: { port: 4222 }
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          volumeMounts: [{ name: data, mountPath: /data }]
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: binding-nats
+spec:
+  selector: { app: binding-nats }
+  ports: [{ port: 4222, targetPort: 4222 }]

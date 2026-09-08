@@ -1,0 +1,5 @@
+{
+  "name": "keyvalue",
+  "entry": "src/app.ts",
+  "output": "dist/keyvalue.wasm"
+}

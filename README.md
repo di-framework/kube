@@ -74,8 +74,8 @@ di-framework-kube down --purge-cluster
 ## Example applications
 
 The [examples-apps workspace](examples-apps/README.md) contains a greeter, product
-catalog, quote API, and four Node compatibility probes for DI Framework 5.2.13.
-Install dependencies and deploy all seven to this platform:
+catalog, quote API, seven service-binding examples, and four Node compatibility probes for DI Framework 5.3.0.
+Install dependencies and deploy all examples to this platform:
 
 ```sh
 cd examples-apps
@@ -88,12 +88,13 @@ The workspace includes a local component registry, deployment configuration, and
 API checks that run both locally and against the deployed Wasm components.
 
 The examples pin core, HTTP, the CLI, CLI extension, and wasmCloud plugin to
-`5.2.13`. The lockfile resolves these packages from the registry.
+`5.3.0`. Publication is pending; run `bun install` after the packages become
+available to refresh the previous lockfile before the frozen install above.
 The probes exercise runtime APIs, crypto reference vectors, and HTTP/TCP/UDP over
 WASI sockets, using a cluster-local echo service and an explicit DNS allowlist.
 See the [published 5.2.12 baseline](examples-apps/verification-5.2.12.md) and
 [local verification report](examples-apps/verification-local.md).
-The wasmCloud chart stays `2.8.0`; no postgres or KV providers are required.
+The wasmCloud chart stays `2.8.0`; the PostgreSQL example provisions its database and configures the native host plugin.
 
 ## Existing clusters and Linux service mode
 
