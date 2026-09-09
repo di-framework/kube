@@ -29,6 +29,15 @@
       "etag": "\"f04315a3347f43d4c0c90273b47f5442\"",
       "content": "{\"release\":\"5.3.1-candidate\",\"packaged\":true}\n",
       "encoding": "utf-8"
+    },
+    "/data.bin": {
+      "path": "/data.bin",
+      "contentType": "application/octet-stream",
+      "size": 4,
+      "hash": "6d6f7836f1e146dc0204afb5133dae52fdc05603d8ac2dc793b481b0e0829fd1",
+      "etag": "\"6d6f7836f1e146dc0204afb5133dae52\"",
+      "content": "AP+ACg==",
+      "encoding": "base64"
     }
   }
 }

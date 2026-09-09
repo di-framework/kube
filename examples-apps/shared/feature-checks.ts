@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 export type ProbeFetch = (path: string, init?: RequestInit) => Promise<Response>;
 
 export async function verifyStaticSite(fetch: ProbeFetch) {
+  const binary = await fetch("/assets/data.bin");
+  assert.equal(binary.status, 200);
+  assert.equal(binary.headers.get("content-type"), "application/octet-stream");
+  assert.deepEqual(new Uint8Array(await binary.arrayBuffer()), new Uint8Array([0, 255, 128, 10]));
   const first = await fetch("/assets/index.html");
   assert.equal(first.status, 200);
   assert.match(first.headers.get("content-type") ?? "", /text\/html/);
