@@ -24,3 +24,10 @@ adapters, long-lived stateful services, storage ownership and supported
 manifests, authenticated control APIs and the scheduled invoker, and the
 remaining lifecycle acceptance scenarios. No merge or release approval follows
 from this evidence.
+
+Local framework checks pass: 3,187 tests, 3 skips, 0 failures; 100% line
+coverage on every reported source file; all 21 package tarball audits; Deno HTTP
+tests and sandbox typechecks. See `framework-checks.txt`. The queue package was
+rebuilt after relocating its regression test outside `src`; the test is not
+included in its package output. These local checks do not close the missing
+feature or release gates.

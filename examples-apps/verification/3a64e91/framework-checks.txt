@@ -1,0 +1,42 @@
+Local framework validation for 3a64e917e960745b32ddd317449d9550bf28e606
+Bun 1.4.2; Node.js v22.23.2; Wasmtime 48.0.1
+
+The repository pre-push hook passed without bypasses:
+
+ 3187 pass
+ 3 skip
+ 0 fail
+ 1 snapshots, 11234 expect() calls
+Ran 3190 tests across 310 files. [204.40s]
+
+[pre-push] Running tests with the required 100% aggregate line coverage...
+[pre-push] Aggregate coverage passed. Checking every reported source file for 100% line coverage...
+Line coverage check passed (100% on reported source files).
+[pre-push] Passed: tests and line coverage checks succeeded.
+
+
+--- Package Coverage Mapping & Metrics Summary ---
+  [MEASURED]   @di-framework/actors      -> Coverage:   100% (3274/3274 lines)
+  [MEASURED]   @di-framework/ai          -> Coverage:   100% (10147/10147 lines)
+  [MEASURED]   @di-framework/ai-utils    -> Coverage:   100% (8229/8229 lines)
+  [MEASURED]   @di-framework/auth        -> Coverage:   100% (5602/5602 lines)
+  [MEASURED]   @di-framework/authz       -> Coverage:   100% (675/675 lines)
+  [MEASURED]   @di-framework/cli         -> Coverage:   100% (3723/3723 lines)
+  [MEASURED]   @di-framework/cli-extension -> Coverage:   100% (87/87 lines)
+  [MEASURED]   @di-framework/cli-plugin-wasmcloud -> Coverage:   100% (7888/7888 lines)
+  [MEASURED]   @di-framework/cloudfoundry -> Coverage:   100% (1226/1226 lines)
+  [MEASURED]   @di-framework/codegen     -> Coverage:   100% (869/869 lines)
+  [MEASURED]   @di-framework/config      -> Coverage:   100% (434/434 lines)
+  [MEASURED]   @di-framework/core        -> Coverage:   100% (1839/1839 lines)
+  [MEASURED]   @di-framework/events      -> Coverage:   100% (660/660 lines)
+  [MEASURED]   @di-framework/graphql     -> Coverage:   100% (2775/2775 lines)
+  [MEASURED]   @di-framework/http        -> Coverage:   100% (927/927 lines)
+  [MEASURED]   @di-framework/queues      -> Coverage:   100% (729/729 lines)
+  [MEASURED]   @di-framework/repo        -> Coverage:   100% (2561/2561 lines)
+  [MEASURED]   @di-framework/rpc         -> Coverage:   100% (2416/2416 lines)
+  [MEASURED]   @di-framework/socket      -> Coverage:   100% (2405/2405 lines)
+  [UNMEASURED] @di-framework/tsc         -> Status: N/A (Contains Go plugin source (plugin/main.go) and CJS wrappers; no TypeScript source files instrumented by Bun LCOV runner.)
+  [MEASURED]   @di-framework/wasmcloud   -> Coverage:   100% (245/245 lines)
+--------------------------------------------------
+
+[PASS] Coverage mapping check passed. All 21 package(s) verified.
