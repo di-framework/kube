@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 export interface ApiCase {
-  app: "config" | "secrets" | "keyvalue" | "blobstore" | "messaging" | "outgoing-http" | "postgres" | "greeter" | "catalog" | "quotes" | "node-runtime" | "node-crypto" | "node-network" | "node-http";
+  app: "node-tls" | "config" | "secrets" | "keyvalue" | "blobstore" | "messaging" | "outgoing-http" | "postgres" | "greeter" | "catalog" | "quotes" | "node-runtime" | "node-crypto" | "node-network" | "node-http";
   liveOnly?: boolean;
   path: string;
   method?: string;
@@ -12,6 +12,9 @@ export interface ApiCase {
 }
 
 export const cases: ApiCase[] = [
+  { app: "node-tls", path: "/verify", liveOnly: true, status: 200, expected: { https: true, tls: true, upgrade: true, wrongNameRejected: true } },
+  { app: "node-tls", path: "/health", status: 200, expected: { app: "node-tls", status: "ok" } },
+  { app: "node-tls", path: "/missing", status: 404, expected: { error: "Not found" } },
   {"app": "config", "path": "/health", "method": "GET", "liveOnly": true, "status": 200, "expected": {"app": "config", "status": "ok"}},
   {"app": "config", "path": "/verify", "method": "POST", "liveOnly": true, "status": 200, "expected": {"message": "from-kubernetes-configmap", "merged": true, "missing": true}, "body": "{}"},
   {"app": "config", "path": "/missing", "method": "GET", "liveOnly": true, "status": 404, "expected": {"error": "Not found"}},

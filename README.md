@@ -74,12 +74,12 @@ di-framework-kube down --purge-cluster
 ## Example applications
 
 The [examples-apps workspace](examples-apps/README.md) contains a greeter, product
-catalog, quote API, seven service-binding examples, and four Node compatibility probes for DI Framework 5.3.0.
+catalog, quote API, seven service-binding examples, and five Node compatibility probes for DI Framework 5.3.0 with the local TLS changes from PR #413.
 Install dependencies and deploy all examples to this platform:
 
 ```sh
 cd examples-apps
-bun install --frozen-lockfile
+bun run link:framework
 bun run deploy
 bun run smoke
 ```
@@ -87,9 +87,10 @@ bun run smoke
 The workspace includes a local component registry, deployment configuration, and
 API checks that run both locally and against the deployed Wasm components.
 
-The examples pin core, HTTP, the CLI, CLI extension, and wasmCloud plugin to
-`5.3.0`. Publication is pending; run `bun install` after the packages become
-available to refresh the previous lockfile before the frozen install above.
+The examples link core, HTTP, the CLI, CLI extension, and wasmCloud plugin to
+the sibling `../di-framework` checkout. Build that checkout first. Deployment
+builds and imports a pinned wasmCloud 2.8.0 host with its opt-in `wasi-tls`
+feature; see the example README for requirements and verification results.
 The probes exercise runtime APIs, crypto reference vectors, and HTTP/TCP/UDP over
 WASI sockets, using a cluster-local echo service and an explicit DNS allowlist.
 See the [published 5.2.12 baseline](examples-apps/verification-5.2.12.md) and

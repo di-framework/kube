@@ -19,8 +19,11 @@ const httpPort = Number(process.env.DI_HTTP_PORT ?? "28080");
 if (!Number.isInteger(httpPort) || httpPort < 1024 || httpPort > 65535) throw new Error("DI_HTTP_PORT must be 1024–65535");
 if (httpPort === port) throw new Error("DI_HTTP_PORT and DI_REGISTRY_PORT must be different");
 
+// Keep the TLS-capable host for every app deployment, so Helm cannot revert it.
+const { prepareTlsRuntime } = await import("./tls-runtime");
+await prepareTlsRuntime();
 // Explicitly scoped to the selected di-framework-kube instance, never kubectl's current context.
-await run([binary, "up", "--name", instance, "--http-port", String(httpPort), "--allow-insecure-registries", "--values", resolve(workspace, "infra/postgres-host.yaml")]);
+await run([binary, "up", "--name", instance, "--http-port", String(httpPort), "--allow-insecure-registries", "--values", resolve(workspace, "infra/postgres-host.yaml"), "--values", resolve(workspace, "infra/tls-runtime/values.yaml")]);
 const platform = await outputs();
 await run(kubectl(platform, "apply", "-f", resolve(workspace, "infra/registry.yaml")));
 await run(kubectl(platform, "rollout", "status", "deployment/examples-registry", "--timeout=180s"));

@@ -10,7 +10,9 @@ import catalog from "../apps/catalog/src/app";
 import quotes from "../apps/quotes/src/app";
 import { cases, requestFor, verify } from "./api-cases";
 
-const apps = { greeter, catalog, quotes, "node-runtime": runtime, "node-crypto": crypto, "node-network": network, "node-http": http };
+import tls from "../apps/node-tls/src/app";
+
+const apps = { "node-tls": tls, greeter, catalog, quotes, "node-runtime": runtime, "node-crypto": crypto, "node-network": network, "node-http": http };
 for (const [index, example] of cases.entries()) {
   if (example.liveOnly || example.app === "postgres") continue;
   if (!(example.app in apps)) throw new Error(`Missing local test app: ${example.app}`);
