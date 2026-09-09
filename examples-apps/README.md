@@ -1,18 +1,28 @@
 # DI Framework apps on Kubesolo
 
-Fourteen TypeScript HTTP apps use DI Framework 5.3.0 and target
+Fifteen TypeScript HTTP apps use locally linked DI Framework packages and target
 WASI 0.3 components with its wasmCloud extension. Each default export is a Fetch
 router; the extension supplies the WASI adapter and generates the Kubernetes
 resources.
 
-The workspace pins DI Framework core, HTTP, CLI, CLI extension, and wasmCloud
-plugin to `5.3.0`, including transitive dependency overrides. The lockfile resolves
-these packages from the registry.
+The workspace links core, HTTP, CLI, CLI extension, and the wasmCloud plugin to
+our sibling `../../di-framework` checkout, including transitive overrides. This
+exercises the unpublished TLS/HTTPS implementation from framework PR #413.
+Build that checkout first, then register its packages and install this workspace:
 
-The 5.3.0 upgrade is staged in the package manifests. At the time of this update,
-the wasmCloud plugin was not yet available from the registry, so `bun.lock` still
-records the previous 5.2.13 resolution. Once publication completes, run `bun install`
-to refresh the lockfile before using `--frozen-lockfile` or deploying.
+```sh
+(cd ../../di-framework && bun install)
+bun run link:framework
+bun run check
+bun test
+bun run verify:tls
+```
+
+`link:framework` registers Bun links from that exact sibling checkout and refreshes
+the install. These are live directory links, not registry packages or copied
+snapshots. Rebuild the framework after changing its compiled packages. Bun's link
+registry is user-wide; rerun this helper if another checkout replaces the links.
+The per-app release ranges are overridden by the workspace's local links.
 
 The operator chart stays **2.8.0**. The PostgreSQL example enables its native
 PostgreSQL host plugin and provisions a database in the platform namespace. `bun run smoke` must
@@ -26,6 +36,7 @@ readiness alone does not prove the guest can serve a request.
 | `quotes` | `POST /quote` | Property injection with `@Component(ProductCatalog)`, body validation, totals in integer cents |
 | `node-runtime` | `GET /verify` | Seeded JSON files, memory filesystem writes and ENOENT, process environment, Buffer, path, AsyncLocalStorage, createRequire failure |
 | `node-crypto` | `GET /verify` | SHA-256, HMAC, HKDF and AES-GCM reference vectors, tamper rejection, ECDH, WASI randomness, UUIDs and randomInt bounds |
+| `node-tls` | `GET /verify` | HTTPS Agent, raw TLS, existing TCP socket handoff, wrong server-name rejection |
 | `node-http` | `GET /verify` | Node HTTP chunked POST/response over WASI TCP |
 | `config` | `POST /verify` | ConfigMap overrides, merged `getAll`, missing keys |
 | `secrets` | `POST /verify` | Kubernetes Secret lookup/reveal, digest comparison, missing-key errors |
@@ -53,20 +64,21 @@ passed. That run also passed typechecking and all 37 local tests.
 ## Deploy all examples
 
 Requirements: a running Docker Engine, Bun 1.3+, Node.js 22+, `kubectl`, `oras`,
-and either the built `../bin/di-framework-kube` or `di-framework-kube` on PATH.
+`git`, `tar`, and either the built `../bin/di-framework-kube` or `di-framework-kube` on PATH.
 From the repository root:
 
 ```sh
 make build
 cd examples-apps
-bun install --frozen-lockfile
+bun run link:framework
 bun run check
 bun test
 bun run deploy
 bun run smoke
 ```
 
-Deployment creates or updates the binary's `local` cluster, enables local HTTP
+Deployment first builds/imports the TLS-capable runtime described below. It
+creates or updates the binary's `local` cluster, enables local HTTP
 registry pulls, and installs a registry with a 2Gi persistent-volume claim in the
 platform namespace. A temporary loopback port-forward on `127.0.0.1:25001` lets
 ORAS publish components. wasmCloud pulls the same artifacts through the
@@ -137,8 +149,8 @@ IP changes refreshes the fixture. The smoke client enforces a 15-second request 
 remain independently bounded if a guest stalls. Local network tests start ephemeral
 loopback echo servers; live tests use Kubernetes DNS and actual WASI sockets.
 No database, KV provider, external API, or mocked WASI implementation is involved.
-These probes do not cover TLS/HTTPS or child processes, which remain mocks in
-5.2.12, or claim to cover every Node API.
+Those older probes do not cover TLS/HTTPS or child processes. The new `node-tls`
+example covers the outbound TLS/HTTPS subset added in PR #413.
 
 ## Edit and redeploy
 
@@ -184,8 +196,8 @@ kubectl -n wasmcloud get workloaddeployments,workloadreplicasets
 kubectl -n wasmcloud logs deployment/hostgroup-default --tail=100
 
 # Remove the apps, retaining the platform, fixtures, and published components.
-kubectl -n wasmcloud delete workloaddeployment greeter catalog quotes node-runtime node-crypto node-network node-http postgres config secrets keyvalue blobstore messaging outgoing-http
-kubectl -n wasmcloud delete service greeter catalog quotes node-runtime node-crypto node-network node-http postgres config secrets keyvalue blobstore messaging outgoing-http
+kubectl -n wasmcloud delete workloaddeployment greeter catalog quotes node-runtime node-crypto node-network node-http node-tls postgres config secrets keyvalue blobstore messaging outgoing-http
+kubectl -n wasmcloud delete service greeter catalog quotes node-runtime node-crypto node-network node-http node-tls postgres config secrets keyvalue blobstore messaging outgoing-http
 
 # Remove the network probe's supporting service too.
 kubectl -n wasmcloud delete -f infra/node-compat-echo.yaml
@@ -299,3 +311,159 @@ Typechecking and **40 local tests** passed. A clean frozen-lockfile install also
 reapplied the compatibility patch and passed the three manifest regression tests.
 These historical results use the local compatibility patch. Both upstream PRs are
 merged for 5.3.0, and the workspace no longer applies that patch.
+
+## TLS and HTTPS (local PR packages)
+
+**Kubernetes verification is required.** The example is verified only when the
+compiled component is deployed to the local Kubernetes cluster and the live smoke
+checks pass through its HTTP ingress, including `GET /verify`. A successful build,
+local Bun tests, or Wasmtime probes alone do not meet this requirement.
+
+```sh
+bun run link:framework
+bun run check
+bun test
+bun run verify:tls
+```
+
+`verify:tls` runs deployment followed by the live Kubernetes smoke checks and
+exits nonzero if either fails.
+
+### Verified on Kubernetes — 2026-09-09
+
+`bun run link:framework` and `bun run verify:tls` passed. All **3/3 live checks**
+ran through `http://127.0.0.1:28080` with `Host: node-tls`: `/verify` returned 200,
+`/health` returned 200, and `/missing` returned the expected JSON 404.
+
+```sh
+curl --fail-with-body --max-time 15 -sS -H 'Host: node-tls' \
+  http://127.0.0.1:28080/verify
+# {"https":true,"tls":true,"upgrade":true,"wrongNameRejected":true}
+```
+
+Verified versions:
+
+| Part | Version / revision |
+| --- | --- |
+| DI Framework local PR #413 head | `53e241cb63c5f3bcc5d81a773148c1ee27a20fc4` |
+| componentize-qjs | `0.4.4-di.2` |
+| Bun | `1.3.14` |
+| Kubesolo / Kubernetes | `1.2.0` / `1.35.7+kubesolo-v1.2.0` |
+| wasmCloud operator chart | `2.8.0` |
+| wash host | `2.8.0`, default features plus `wasi-tls` |
+| Wasmtime in the host | `47.0.3` (upstream Cargo.lock) |
+| Host platform | Linux arm64 |
+
+The built runtime image's observed index digest is
+`sha256:00f802dd795876cec409574df6d6a4df900c5b10c5b63ef898ef7b5f1be0fd00`.
+The unchanged component artifact tag is
+`sha256-0017aedc83c23256b3e3421020d519260bf9befdb12d3ee6ccaf071097d04463`;
+replacing the host build resolved the linking failure. Rebuilds may have different
+image digests because build metadata is not normalized.
+
+A subsequent `bun run deploy greeter` retained the TLS host image and
+`pull_policy: Never`. Then `bun run smoke` passed **64/64 live API checks across
+all 15 apps**, including the TLS checks again. PostgreSQL and registry PVCs
+retained their original bound volumes; existing credentials and cluster data
+were preserved.
+
+Local regression commands also passed:
+
+```sh
+bun install --frozen-lockfile
+bun run check
+bun test  # 42 passed
+(cd ../../di-framework && bun test --timeout 30000 \
+  packages/di-framework-cli-plugin-wasmcloud/tests/node-compat-tls.test.ts \
+  packages/di-framework-cli-plugin-wasmcloud/tests/wash-dev.test.ts)
+# 17 passed; the longer runner timeout accommodates component bundling.
+```
+
+The live probe deadlines and all TLS assertions were preserved. No Bun or
+Wasmtime run was used as a substitute for the Kubernetes acceptance checks.
+
+### Runtime integration
+
+The stock `ghcr.io/wasmcloud/wash:2.8.0` image fails to link this component:
+
+```text
+component imports instance `wasi:tls/types@0.3.0-draft`, but a matching implementation was not found in the linker
+instance export `error` has the wrong type: resource implementation is missing
+```
+
+The release image uses Cargo's default features, which omit `wasi-tls`.
+The existing runtime registers the TLS resources only when that feature is
+compiled in. This is a host build configuration issue; changing the guest WIT
+or bypassing certificate verification is unnecessary.
+
+[`infra/tls-runtime/Dockerfile`](infra/tls-runtime/Dockerfile) builds upstream
+wasmCloud **2.8.0**, commit `5c4ec4a3d008b3f401d9e763515f434deebc9936`, with
+`cargo build --locked --release --bin wash --features wasi-tls`. It retains the
+default host features, uses the upstream lockfile (Wasmtime **47.0.3**), and pins
+both base images by digest. Source:
+[release build configuration](https://github.com/wasmCloud/wasmCloud/blob/v2.8.0/.github/workflows/wash.yml),
+[TLS linker registration](https://github.com/wasmCloud/wasmCloud/blob/v2.8.0/crates/wash-runtime/src/engine/mod.rs).
+
+Every `deploy` invocation runs `scripts/tls-runtime.ts` before upgrading Helm.
+The helper builds `docker.io/di-framework/wash:2.8.0-tls` if absent, verifies the
+source revision, and imports the image into the selected `kubesolo-$DI_KUBE_NAME`
+container's `k8s.io` containerd namespace. It downloads a checksum-verified static
+`ctr` from containerd **2.2.0**, uses `images import --local` because Kubesolo
+omits the streaming service, and removes its temporary files after import.
+A first-time instance is bootstrapped before import; existing cluster volumes
+and credentials are reused. The first Rust build needs several GB of free Docker
+storage and substantially longer than an application build (25 minutes for the
+verified release compilation on a 16-CPU Docker VM). This helper supports
+Docker-managed Kubesolo on arm64 and amd64; the live result below is arm64.
+
+[`infra/tls-runtime/values.yaml`](infra/tls-runtime/values.yaml) selects the imported
+image with `pull_policy: Never`. All app deployments pass these values alongside
+the existing PostgreSQL configuration, so deploying another app cannot reset the
+host to the stock image. The operator chart remains **2.8.0**. The host rollout
+briefly restarts its workloads. To rebuild after editing the runtime recipe,
+rebuild the local image explicitly using the Dockerfile and pinned source before
+redeploying; a cached image is otherwise reused.
+
+```sh
+# Optional: build/import the runtime ahead of deployment.
+bun run runtime:tls
+# Required acceptance check: deployment followed by all three ingress checks.
+bun run verify:tls
+# Regression check across all deployed examples.
+bun run smoke
+```
+
+The host must allow DNS/outbound TCP to the fixed `example.com:443` destination.
+The app grants DNS lookup only for `example.com`; certificate verification and
+server-name authentication remain enabled. Incoming TLS termination remains an
+ingress concern.
+
+### Live assertions
+
+`GET /verify` checks these operations concurrently inside the deployed component:
+
+- `node:https.get` with an HTTPS Agent returns the expected public example page.
+- `node:tls.connect` authenticates the peer and exchanges an HTTP request over TLS.
+- An existing `node:net` socket is handed to `tls.connect`, exercising the socket
+  upgrade mechanism used by STARTTLS (without SMTP/IMAP protocol negotiation).
+- A wrong TLS server name fails with an authentication/handshake error. A timeout
+  or DNS failure does not count as a successful rejection.
+
+Each probe has a 10-second deadline and closes its socket. Destinations are fixed
+in source; callers cannot choose arbitrary hosts. `/health` checks router liveness;
+`/verify` checks connectivity and TLS behavior. The wrong-name endpoint may reject
+SNI before presenting its certificate, so this is not an isolated hostname verifier test.
+
+### Diagnostic runner
+
+`bun run smoke:tls` is an optional Wasmtime diagnostic. It is not used by
+`verify:tls` and does not count as Kubernetes verification. It builds the same
+router through the linked CLI, checks TLS WIT discovery, adds a callable test
+export, and runs `/verify`, `/health`, and `/missing` with real network traffic.
+It requires Wasmtime 48 with P3/TLS support and access to `example.com:443`.
+
+Wasmtime 48 `serve` currently fails to link the TLS error resource even with TLS
+enabled. `smoke:tls` uses its working `run` linker to exercise the compiled router.
+This does not verify HTTP ingress in Wasmtime or a Kubernetes deployment.
+The required Kubernetes checks are the deployment and smoke commands above.
+The diagnostic runner does not change the cluster's host image.
