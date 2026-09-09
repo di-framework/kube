@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: schema-migrations
+  namespace: wasmcloud
+  labels:
+    app.kubernetes.io/managed-by: di-framework
+    app.kubernetes.io/name: schema-migrations
+    di-framework.dev/application: "schema-migrations"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+---
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: schema-migrations
+  namespace: wasmcloud
+  labels:
+    app.kubernetes.io/managed-by: di-framework
+    app.kubernetes.io/name: schema-migrations
+    di-framework.dev/application: "schema-migrations"
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostSelector:
+        hostgroup: default
+      kubernetes:
+        service:
+          name: schema-migrations
+      components:
+        - name: schema-migrations
+          image: "registry.invalid/verification:probe"
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          version: "0.3.0"
+          interfaces:
+            - handler
+          config:
+            "host": "schema-migrations"

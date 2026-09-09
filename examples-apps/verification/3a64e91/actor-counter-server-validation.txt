@@ -1,0 +1,3 @@
+persistentvolumeclaim/actor-counter-storage created (server dry run)
+service/actor-counter created (server dry run)
+Error from server (BadRequest): error when creating "<examples-workspace>/.local/verification-main/actor-counter.yaml": WorkloadDeployment in version "v1alpha1" cannot be handled as a WorkloadDeployment: strict decoding error: unknown field "spec.template.spec.components[0].env", unknown field "spec.template.spec.kubernetes.volumeMounts", unknown field "spec.template.spec.kubernetes.volumes", unknown field "spec.template.spec.strategy"

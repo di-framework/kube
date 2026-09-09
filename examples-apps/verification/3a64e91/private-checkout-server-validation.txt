@@ -1,0 +1,2 @@
+service/private-checkout configured (server dry run)
+workloaddeployment.runtime.wasmcloud.dev/private-checkout configured (server dry run)

@@ -1,0 +1,11 @@
+[33m[CONFIGURATION_FIELD_CONFLICT] [0m`compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    <examples-workspace>/apps/durable-receipts/.di-framework/wit
+  JS:     <examples-workspace>/apps/durable-receipts/.di-framework/component.js
+  Output: <examples-workspace>/apps/durable-receipts/dist/durable-receipts.wasm
+Component written to <examples-workspace>/apps/durable-receipts/dist/durable-receipts.wasm
+  Size: 2212343 bytes
+Building durable-receipts...
+Built dist/durable-receipts.wasm
+Built dist/durable-receipts.wasm

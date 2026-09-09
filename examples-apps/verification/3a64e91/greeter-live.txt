@@ -1,0 +1,8 @@
+$ bun scripts/smoke.ts greeter
+PASS greeter: GET /health → 200
+PASS greeter: GET /greet/Ada → 200
+PASS greeter: GET /greet/Ada?lang=es → 200
+PASS greeter: GET /greet/Ada?lang=de → 400
+PASS greeter: GET /missing → 404
+
+5/5 live API checks passed at http://127.0.0.1:28080

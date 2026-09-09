@@ -1,3 +1,5 @@
+Current draft progress: [candidate 3a64e91](verification/3a64e91/README.md).
+
 # Main verification before 5.3.1
 
 **Not ready for release on the current wasmCloud target.** Native tests pass,

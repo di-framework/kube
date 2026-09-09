@@ -1,0 +1,1 @@
+PASS static-site live text, binary, MIME, cache, ETag, HEAD, missing file and traversal checks
