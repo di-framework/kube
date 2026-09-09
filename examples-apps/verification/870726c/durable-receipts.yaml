@@ -1,0 +1,30 @@
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: durable-receipts
+  namespace: wasmcloud
+  labels:
+    app.kubernetes.io/managed-by: di-framework
+    app.kubernetes.io/name: durable-receipts
+    di-framework.dev/application: "durable-receipts"
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostSelector:
+        hostgroup: default
+      components:
+        - name: durable-receipts
+          image: "registry.invalid/verification:probe"
+          queueConsumers:
+            - queue: "verification-receipts"
+              concurrency: 1
+              maxRetries: 2
+              backoffMs: 1
+              timeoutMs: 1000
+      hostInterfaces:
+        - namespace: di-framework
+          package: queues
+          version: "0.1.0"
+          interfaces:
+            - dispatch

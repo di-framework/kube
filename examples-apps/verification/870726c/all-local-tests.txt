@@ -1,0 +1,65 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/binding-manifests.test.ts:
+(pass) ConfigMap overlays reach an unnamed config binding [7.34ms]
+(pass) HTTP ingress and outgoing client share one valid host declaration [0.14ms]
+(pass) key-value host requirements match the runtime's advertised interfaces [0.09ms]
+
+tests/network.test.ts:
+(pass) Node network probe exchanges real HTTP, TCP and UDP bytes [162.48ms]
+
+tests/features.test.ts:
+(pass) private binding resolves the exported service and rejects an ungranted caller [9.00ms]
+(pass) packaged static assets preserve content, metadata, conditional GET, HEAD, and rejection behavior [12.97ms]
+(pass) actors serialize calls, roll back failed writes, migrate once, deduplicate and persist across restart [1481.44ms]
+{"job":"verify-maintenance","completed":true,"runs":1}
+(pass) external cron resolves injected services and waits for completion without automatic timers [6.41ms]
+{"receipt":"receipt-retry","amount":3000,"attempt":2}
+(pass) SQLite jobs survive restart, retry, deduplicate, retain dead letters and support manual retry [1140.42ms]
+(pass) schema migrations apply in order, track history, survive restart and preview without writes [1244.78ms]
+(pass) distributed actor RPC crosses HTTP, enforces caller grants and rejects expired requests [59.35ms]
+
+tests/apps.test.ts:
+(pass) 2: node-tls GET /health → 200 [9.42ms]
+(pass) 3: node-tls GET /missing → 404 [0.77ms]
+(pass) 25: node-runtime GET /verify → 200 [42.48ms]
+(pass) 28: node-runtime GET /verify → 200 [32.43ms]
+(pass) 29: node-runtime GET /verify → 200 [33.44ms]
+(pass) 30: node-runtime GET /verify → 200 [34.95ms]
+(pass) 32: node-crypto GET /verify → 200 [5.76ms]
+(pass) 34: greeter GET /health → 200 [0.69ms]
+(pass) 35: catalog GET /health → 200 [0.14ms]
+(pass) 36: quotes GET /health → 200 [0.26ms]
+(pass) 37: node-runtime GET /health → 200 [0.65ms]
+(pass) 38: node-crypto GET /health → 200 [0.49ms]
+(pass) 39: node-network GET /health → 200 [0.84ms]
+(pass) 40: node-http GET /health → 200 [0.34ms]
+(pass) 41: greeter GET /greet/Ada → 200 [1.23ms]
+(pass) 42: greeter GET /greet/Ada?lang=es → 200 [0.88ms]
+(pass) 43: greeter GET /greet/Ada?lang=de → 400 [0.95ms]
+(pass) 44: catalog GET /products → 200 [0.89ms]
+(pass) 45: catalog GET /products?q=MUG → 200 [0.65ms]
+(pass) 46: catalog GET /products/mug → 200 [0.12ms]
+(pass) 47: catalog GET /products/missing → 404 [0.05ms]
+(pass) 48: quotes POST /quote → 200 [1.29ms]
+(pass) 49: quotes POST /quote → 400 [0.51ms]
+(pass) 50: quotes POST /quote → 400 [0.74ms]
+(pass) 51: quotes POST /quote → 400 [0.53ms]
+(pass) 52: quotes POST /quote → 400 [0.86ms]
+(pass) 53: quotes POST /quote → 400 [0.64ms]
+(pass) 54: quotes POST /quote → 400 [1.03ms]
+(pass) 55: quotes POST /quote → 400 [0.78ms]
+(pass) 56: quotes POST /quote → 400 [0.56ms]
+(pass) 57: quotes POST /quote → 400 [0.84ms]
+(pass) 58: greeter GET /missing → 404 [0.08ms]
+(pass) 59: catalog GET /missing → 404 [0.10ms]
+(pass) 60: quotes GET /missing → 404 [0.13ms]
+(pass) 61: node-runtime GET /missing → 404 [0.35ms]
+(pass) 62: node-crypto GET /missing → 404 [0.61ms]
+(pass) 63: node-network GET /missing → 404 [0.07ms]
+(pass) 64: node-http GET /missing → 404 [0.06ms]
+
+ 49 pass
+ 0 fail
+ 61 expect() calls
+Ran 49 tests across 4 files. [4.72s]

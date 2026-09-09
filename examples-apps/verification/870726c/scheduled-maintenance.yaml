@@ -1,0 +1,58 @@
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: scheduled-maintenance
+  namespace: wasmcloud
+  labels:
+    app.kubernetes.io/managed-by: di-framework
+    app.kubernetes.io/name: scheduled-maintenance
+    di-framework.dev/application: "scheduled-maintenance"
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostSelector:
+        hostgroup: default
+      components:
+        - name: scheduled-maintenance
+          image: "registry.invalid/verification:probe"
+          env:
+            - name: DI_CRON_MODE
+              value: "external"
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: scheduled-maintenance-verify-maintenance
+  namespace: wasmcloud
+  labels:
+    app.kubernetes.io/managed-by: di-framework
+    app.kubernetes.io/name: scheduled-maintenance
+    di-framework.dev/application: "scheduled-maintenance"
+    di-framework.dev/cron-job: "verify-maintenance"
+spec:
+  schedule: "0 0 1 1 *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/managed-by: di-framework
+            app.kubernetes.io/name: scheduled-maintenance
+            di-framework.dev/application: "scheduled-maintenance"
+            di-framework.dev/cron-job: "verify-maintenance"
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: scheduler-dispatch
+              image: "registry.invalid/verification:probe"
+              env:
+                - name: DI_CRON_MODE
+                  value: "external"
+                - name: DI_CRON_INVOKE_JOB
+                  value: "verify-maintenance"
+              args:
+                - "cron:invoke"
+                - "verify-maintenance"

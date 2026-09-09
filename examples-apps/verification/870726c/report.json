@@ -1,0 +1,146 @@
+{
+  "framework": {
+    "directory": "$FRAMEWORK",
+    "revision": "870726c9a5f420e03f4564d14acc0679a4f0b758"
+  },
+  "platform": {
+    "namespace": "wasmcloud",
+    "http": "http://127.0.0.1:28080"
+  },
+  "recordedAt": "2026-09-09T21:23:16.374Z",
+  "steps": [
+    {
+      "name": "prepare",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "prepare.txt"
+    },
+    {
+      "name": "typecheck",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "typecheck.txt"
+    },
+    {
+      "name": "local-tests",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "local-tests.txt"
+    },
+    {
+      "name": "private-checkout-build",
+      "passed": false,
+      "detail": "exit 3",
+      "log": "private-checkout-build.txt"
+    },
+    {
+      "name": "private-checkout-manifest",
+      "passed": true
+    },
+    {
+      "name": "private-checkout-server-validation",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "private-checkout-server-validation.txt"
+    },
+    {
+      "name": "static-site-build",
+      "passed": false,
+      "detail": "exit 3",
+      "log": "static-site-build.txt"
+    },
+    {
+      "name": "static-site-manifest",
+      "passed": true
+    },
+    {
+      "name": "static-site-server-validation",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "static-site-server-validation.txt"
+    },
+    {
+      "name": "actor-counter-build",
+      "passed": false,
+      "detail": "exit 3",
+      "log": "actor-counter-build.txt"
+    },
+    {
+      "name": "actor-counter-manifest",
+      "passed": true
+    },
+    {
+      "name": "actor-counter-server-validation",
+      "passed": false,
+      "detail": "exit 1",
+      "log": "actor-counter-server-validation.txt"
+    },
+    {
+      "name": "scheduled-maintenance-build",
+      "passed": false,
+      "detail": "exit 3",
+      "log": "scheduled-maintenance-build.txt"
+    },
+    {
+      "name": "scheduled-maintenance-manifest",
+      "passed": true
+    },
+    {
+      "name": "scheduled-maintenance-server-validation",
+      "passed": false,
+      "detail": "exit 1",
+      "log": "scheduled-maintenance-server-validation.txt"
+    },
+    {
+      "name": "durable-receipts-build",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "durable-receipts-build.txt"
+    },
+    {
+      "name": "durable-receipts-manifest",
+      "passed": true
+    },
+    {
+      "name": "durable-receipts-server-validation",
+      "passed": false,
+      "detail": "exit 1",
+      "log": "durable-receipts-server-validation.txt"
+    },
+    {
+      "name": "schema-migrations-build",
+      "passed": false,
+      "detail": "exit 3",
+      "log": "schema-migrations-build.txt"
+    },
+    {
+      "name": "schema-migrations-manifest",
+      "passed": true
+    },
+    {
+      "name": "schema-migrations-server-validation",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "schema-migrations-server-validation.txt"
+    }
+  ],
+  "passed": false,
+  "baseline": {
+    "localTests": {
+      "passed": 49,
+      "total": 49,
+      "log": "all-local-tests.txt"
+    },
+    "deployedApiChecks": {
+      "passed": 64,
+      "total": 64,
+      "apps": 15,
+      "log": "existing-live-smoke.txt",
+      "note": "Existing deployed components, not candidate main components"
+    },
+    "existingGreeterBuild": {
+      "passed": false,
+      "log": "greeter-main-build.txt"
+    }
+  }
+}

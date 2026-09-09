@@ -4,9 +4,14 @@ import { binary, instance, kubectl, outputs, run, workspace } from "./platform";
 
 // The app config is the single source of project identity; new apps are discovered.
 const names: string[] = [];
+const projectConfigs = new Map<string, { ingress?: boolean; applicationType?: string }>();
 for (const directory of readdirSync(resolve(workspace, "apps"))) {
   const file = Bun.file(resolve(workspace, "apps", directory, "di-framework.config.json"));
-  if (await file.exists()) names.push((await file.json()).name);
+  if (await file.exists()) {
+    const config = await file.json();
+    names.push(config.name);
+    projectConfigs.set(config.name, config);
+  }
 }
 const requested = process.argv.slice(2);
 for (const name of requested) {
@@ -81,9 +86,17 @@ try {
   };
   const deployed: string[] = [];
   const failed: string[] = [];
+  const outcomes: Array<{ app: string; passed: boolean; error?: string }> = [];
   for (const name of selected) {
     try {
       await run([resolve(workspace, "node_modules/.bin/di-framework"), "wasmcloud", "deploy", name, "--yes"], { env });
+      const config = projectConfigs.get(name)!;
+      if (config.ingress === false || config.applicationType === "worker") {
+        console.log(`${name}: workload ready; private invocation must be verified separately`);
+        deployed.push(name);
+        outcomes.push({ app: name, passed: true });
+        continue;
+      }
       // The extension generates port 80; the Kubesolo profile listens on 9191.
       await run(kubectl(platform, "patch", "service", name, "--type=merge", "-p",
         JSON.stringify({ spec: { ports: [{ name: "http", port: 80, targetPort: 9191, protocol: "TCP" }] } })));
@@ -111,11 +124,14 @@ try {
       if (!healthy) throw new Error(`${name} failed its live /health check: ${detail}`);
       console.log(`${name}: live /health passed`);
       deployed.push(name);
+      outcomes.push({ app: name, passed: true });
     } catch (error) {
       failed.push(name);
+      outcomes.push({ app: name, passed: false, error: String(error) });
       console.error(`${name}: deployment failed: ${error}`);
     }
   }
+  await Bun.write(resolve(workspace, ".local/deployment.json"), JSON.stringify(outcomes, null, 2) + "\n");
   console.log(`\nDeployed ${deployed.join(", ") || "no apps"} to ${instance}. HTTP: ${platform.endpoints.http}`);
   console.log("Run bun run smoke to verify the live APIs.");
   if (failed.length) throw new Error(`Failed to deploy: ${failed.join(", ")}`);

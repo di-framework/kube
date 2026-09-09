@@ -1,0 +1,5 @@
+{
+  "name": "private-checkout",
+  "entry": "src/app.ts",
+  "output": "dist/private-checkout.wasm"
+}

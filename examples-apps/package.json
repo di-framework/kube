@@ -13,11 +13,18 @@
     "smoke:tls": "bun scripts/tls-smoke.ts",
     "link:framework": "bun scripts/link-framework.ts",
     "runtime:tls": "bun scripts/tls-runtime.ts",
-    "verify:tls": "bun run deploy node-tls && bun run smoke node-tls"
+    "verify:tls": "bun run deploy node-tls && bun run smoke node-tls",
+    "prepare:features": "bun scripts/prepare-features.ts",
+    "test:features": "bun run prepare:features && bun test tests/features.test.ts",
+    "verify:features": "bun scripts/verify-features.ts"
   },
   "dependencies": {
     "@di-framework/core": "link:@di-framework/core",
-    "@di-framework/http": "link:@di-framework/http"
+    "@di-framework/http": "link:@di-framework/http",
+    "@di-framework/actors": "link:@di-framework/actors",
+    "@di-framework/queues": "link:@di-framework/queues",
+    "@di-framework/repo": "link:@di-framework/repo",
+    "@di-framework/wasmcloud": "link:@di-framework/wasmcloud"
   },
   "devDependencies": {
     "@di-framework/cli": "link:@di-framework/cli",
@@ -32,6 +39,10 @@
     "@di-framework/http": "link:@di-framework/http",
     "@di-framework/cli": "link:@di-framework/cli",
     "@di-framework/cli-extension": "link:@di-framework/cli-extension",
-    "@di-framework/cli-plugin-wasmcloud": "link:@di-framework/cli-plugin-wasmcloud"
+    "@di-framework/cli-plugin-wasmcloud": "link:@di-framework/cli-plugin-wasmcloud",
+    "@di-framework/actors": "link:@di-framework/actors",
+    "@di-framework/queues": "link:@di-framework/queues",
+    "@di-framework/repo": "link:@di-framework/repo",
+    "@di-framework/wasmcloud": "link:@di-framework/wasmcloud"
   }
 }

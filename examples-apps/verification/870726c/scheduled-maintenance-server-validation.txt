@@ -1,0 +1,2 @@
+cronjob.batch/scheduled-maintenance-verify-maintenance created (server dry run)
+Error from server (BadRequest): error when creating "$EXAMPLES/.local/verification-main/scheduled-maintenance.yaml": WorkloadDeployment in version "v1alpha1" cannot be handled as a WorkloadDeployment: strict decoding error: unknown field "spec.template.spec.components[0].env"

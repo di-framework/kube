@@ -1,0 +1,43 @@
+Bundling failed: Build failed with 7 errors:
+
+[MISSING_EXPORT] "closeSync" is not exported by "../../../../di-framework-verify-main/packages/di-framework-cli-plugin-wasmcloud/dist/node-compat/fs.js".
+     ╭─[ ../../../../di-framework-verify-main/packages/di-framework-http/dist/index.js:111:3 ]
+     │
+ 111 │   closeSync,
+     │   ────┬────
+     │       ╰────── Missing export
+─────╯
+
+[MISSING_EXPORT] "createReadStream" is not exported by "../../../../di-framework-verify-main/packages/di-framework-cli-plugin-wasmcloud/dist/node-compat/fs.js".
+     ╭─[ ../../../../di-framework-verify-main/packages/di-framework-http/dist/index.js:113:3 ]
+     │
+ 113 │   createReadStream,
+     │   ────────┬───────
+     │           ╰───────── Missing export
+─────╯
+
+[MISSING_EXPORT] "fstatSync" is not exported by "../../../../di-framework-verify-main/packages/di-framework-cli-plugin-wasmcloud/dist/node-compat/fs.js".
+     ╭─[ ../../../../di-framework-verify-main/packages/di-framework-http/dist/index.js:115:3 ]
+     │
+ 115 │   fstatSync,
+     │   ────┬────
+     │       ╰────── Missing export
+─────╯
+
+[MISSING_EXPORT] "openSync" is not exported by "../../../../di-framework-verify-main/packages/di-framework-cli-plugin-wasmcloud/dist/node-compat/fs.js".
+     ╭─[ ../../../../di-framework-verify-main/packages/di-framework-http/dist/index.js:117:3 ]
+     │
+ 117 │   openSync,
+     │   ────┬───
+     │       ╰───── Missing export
+─────╯
+
+[MISSING_EXPORT] "readdirSync" is not exported by "../../../../di-framework-verify-main/packages/di-framework-cli-plugin-wasmcloud/dist/node-compat/fs.js".
+     ╭─[ ../../../../di-framework-verify-main/packages/di-framework-http/dist/index.js:118:3 ]
+     │
+ 118 │   readdirSync,
+     │   ─────┬─────
+     │        ╰─────── Missing export
+─────╯
+
+...

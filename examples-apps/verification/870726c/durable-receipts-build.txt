@@ -1,0 +1,19 @@
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+../../../../di-framework-verify-main/packages/di-framework-queues/dist/backend/sqlite.js (1:25) [UNRESOLVED_IMPORT] Could not resolve 'bun:sqlite' in ../../../../di-framework-verify-main/packages/di-framework-queues/dist/backend/sqlite.js
+   ╭─[ ../../../../di-framework-verify-main/packages/di-framework-queues/dist/backend/sqlite.js:1:26 ]
+   │
+ 1 │ import { Database } from 'bun:sqlite';
+   │                          ──────┬─────
+   │                                ╰─────── Module not found, treating it as an external dependency
+───╯
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/durable-receipts/.di-framework/wit
+  JS:     $EXAMPLES/apps/durable-receipts/.di-framework/component.js
+  Output: $EXAMPLES/apps/durable-receipts/dist/durable-receipts.wasm
+Component written to $EXAMPLES/apps/durable-receipts/dist/durable-receipts.wasm
+  Size: 2132870 bytes
+Building durable-receipts...
+Built dist/durable-receipts.wasm
+Built dist/durable-receipts.wasm

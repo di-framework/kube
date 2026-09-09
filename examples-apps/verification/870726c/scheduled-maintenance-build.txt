@@ -1,0 +1,27 @@
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/scheduled-maintenance/.di-framework/wit
+  JS:     $EXAMPLES/apps/scheduled-maintenance/.di-framework/component.js
+  Output: $EXAMPLES/apps/scheduled-maintenance/dist/scheduled-maintenance.wasm
+Error: error while executing at wasm backtrace:
+    0: 0x131a1d - <unknown>!<wasm function 1533>
+    1: 0x130617 - <unknown>!<wasm function 1509>
+    2:  0x6f14b - <unknown>!<wasm function 514>
+    3:  0x10943 - <unknown>!<wasm function 55>
+    4:  0x10de4 - <unknown>!<wasm function 62>
+    5:  0x54630 - <unknown>!<wasm function 358>
+    6:  0x5401e - <unknown>!<wasm function 357>
+    7:  0x248c8 - <unknown>!<wasm function 193>
+    8:  0xb29a0 - <unknown>!<wasm function 851>
+    9:  0xb4408 - <unknown>!<wasm function 861>
+   10:  0xb2ccf - <unknown>!<wasm function 852>
+   11:  0x93afd - <unknown>!<wasm function 653>
+   12:  0xb4314 - <unknown>!<wasm function 860>
+   13:  0x53495 - <unknown>!<wasm function 353>
+   14:  0x53eb7 - <unknown>!<wasm function 356>
+   15:  0x66d5d - <unknown>!<wasm function 439>
+
+Caused by:
+    unknown import: `wasi:cli/stderr@0.2.12#get-stderr` has not been defined
+componentize-qjs failed with exit code 1

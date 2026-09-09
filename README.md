@@ -73,6 +73,11 @@ di-framework-kube down --purge-cluster
 
 ## Example applications
 
+Six additional [main verification apps](examples-apps/FEATURES.md) exercise the
+features planned for 5.3.1 against local Bun and the real Kubernetes API.
+The [verification report](examples-apps/verification-main.md) records the release blockers.
+
+
 The [examples-apps workspace](examples-apps/README.md) contains a greeter, product
 catalog, quote API, seven service-binding examples, and five Node compatibility probes for DI Framework 5.3.0 with the local TLS changes from PR #413.
 Install dependencies and deploy all examples to this platform:
