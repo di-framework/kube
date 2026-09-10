@@ -77,3 +77,9 @@ A full successful feature run also rebuilds and deploys all example apps before
 running the 64-check smoke suite. Missing deployment, live, or smoke evidence
 fails the aggregate result. Docker Desktop and the existing Kubesolo instance
 must be running before invoking the verifier.
+
+The static-site app imports `src/assets.json`, generated from its `public/`
+fixtures and ignored by Git. Typechecking, tests, feature verification, and
+deployment generate it automatically. To build only this app, run
+`bun run build` from `apps/static-site`; when invoking the framework CLI directly,
+run `bun run prepare:features` from this workspace first.

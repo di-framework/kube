@@ -18,6 +18,7 @@ for (const name of requested) {
   if (!names.includes(name)) throw new Error(`Unknown app ${name}; choose ${names.join(", ")}`);
 }
 const selected = requested.length ? requested : names.sort();
+if (selected.includes("static-site")) await import("./prepare-features");
 const port = Number(process.env.DI_REGISTRY_PORT ?? "25001");
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("DI_REGISTRY_PORT must be 1024–65535");
 const httpPort = Number(process.env.DI_HTTP_PORT ?? "28080");

@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "build": "bun ../../scripts/prepare-features.ts && ../../node_modules/.bin/di-framework wasmcloud build"
+  },
   "dependencies": {
     "@di-framework/core": "5.3.0",
     "@di-framework/http": "5.3.0"

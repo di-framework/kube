@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "scripts": {
-    "check": "tsc --noEmit",
+    "check": "bun run prepare:features && tsc --noEmit",
     "test": "bun test",
     "deploy": "bun scripts/deploy.ts",
     "smoke": "bun scripts/smoke.ts",

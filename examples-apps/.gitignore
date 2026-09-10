@@ -5,3 +5,6 @@ dist/
 
 # Keep exported verification logs and reports out of source control.
 /verification/
+
+# Packaged from the static-site public fixtures before builds and tests.
+/apps/static-site/src/assets.json
