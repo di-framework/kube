@@ -10,7 +10,7 @@ import staticSite from "../apps/static-site/src/app";
 import { VerificationCounter } from "../apps/actor-counter/src/counter";
 import { createMaintenance } from "../apps/scheduled-maintenance/src/app";
 import { MaintenanceAudit } from "../apps/scheduled-maintenance/src/service";
-import dispatcher, { container as receipts } from "../apps/durable-receipts/src/app";
+import { dispatcher, container as receipts } from "../apps/durable-receipts/src/app";
 import { ReceiptAudit } from "../apps/durable-receipts/src/processor";
 import { createSchemaApp } from "../apps/schema-migrations/src/app";
 import { verifyStaticSite } from "../shared/feature-checks";
@@ -135,20 +135,26 @@ test("schema migrations apply in order, track history, survive restart and previ
   const path = join(directory, "invoices.sqlite");
   let app = createSchemaApp(path);
   try {
-    expect((await app.runner.status()).pending.map((migration) => migration.version)).toEqual(["1", "2"]);
-    expect((await app.runner.execute({ dryRun: true })).dryRun).toBe(true);
-    expect((await app.runner.status()).applied).toHaveLength(0);
+    let { database, runner } = await app.getRunner();
+    expect((await runner.status()).pending.map((migration) => migration.version)).toEqual(["1", "2"]);
+    expect((await runner.execute({ dryRun: true })).dryRun).toBe(true);
+    expect((await runner.status()).applied).toHaveLength(0);
     const response = await app.router.fetch(new Request("http://schema-migrations/verify"));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ versions: ["1", "2"], upToDate: true });
-    app.database.close();
+    await database.close?.();
     app = createSchemaApp(path);
-    expect((await app.runner.execute()).applied).toHaveLength(0);
-    expect((await app.runner.status()).applied).toHaveLength(2);
+    ({ database, runner } = await app.getRunner());
+    expect((await runner.execute()).applied).toHaveLength(0);
+    expect((await runner.status()).applied).toHaveLength(2);
     const status = await cli("migrations", "status", "--db", path, "--binding", "verification", "--module", resolve(import.meta.dir, "../apps/schema-migrations/src/migrations.ts"), "--json");
     expect(status.isUpToDate).toBe(true);
     expect(status.applied).toHaveLength(2);
-  } finally { app.database.close(); rmSync(directory, { recursive: true, force: true }); }
+  } finally {
+    const { database } = await app.getRunner();
+    await database.close?.();
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("distributed actor RPC crosses HTTP, enforces caller grants and rejects expired requests", async () => {

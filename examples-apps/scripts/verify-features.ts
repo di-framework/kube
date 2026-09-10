@@ -73,7 +73,8 @@ try {
     const manifest = resolve(reportDirectory, `${name}.yaml`);
     const rendered = await check(`${name}-manifest`, async () => {
       const project = loadProject(directory);
-      const yaml = renderWorkloadManifest(project, connection, "registry.invalid/verification:probe", requirementsForProject(project), [], { hasActors: discoverActors(project).length > 0 }, discoverScheduledJobs(directory), discoverQueueHandlers(project));
+      const hasActors = discoverActors(project).length > 0;
+      const yaml = renderWorkloadManifest(project, connection, "registry.invalid/verification:probe", requirementsForProject(project), [], { hasActors, hasPersistentStorage: hasActors || discoverQueueHandlers(project).length > 0 || project.persistentStorage === true }, discoverScheduledJobs(directory), discoverQueueHandlers(project));
       await Bun.write(manifest, yaml);
     });
     const valid = rendered && await command(`${name}-server-validation`, kubectl(platform, "apply", "--dry-run=server", "--validate=strict", "-f", manifest));
@@ -98,17 +99,73 @@ try {
         artifacts[name] = { sha256, bytes: bytes.length, deploymentImage };
       });
       if (!deployed) continue;
-      const request = (path: string, init?: RequestInit) => fetch(new URL(path, platform.endpoints.http), { ...init, headers: { ...Object.fromEntries(new Headers(init?.headers)), Host: name }, signal: AbortSignal.timeout(15_000) });
-      if (name === "static-site") await check(`${name}-live`, () => verifyStaticSite(request));
-      else if (name === "private-checkout") await check(`${name}-live`, async () => {
+      const project = loadProject(resolve(workspace, "apps", name));
+      const usesStorageHost =
+        project.persistentStorage === true ||
+        discoverActors(project).length > 0 ||
+        discoverQueueHandlers(project).length > 0;
+      const withHttp = async (action: (request: (path: string, init?: RequestInit) => Promise<Response>) => Promise<void>) => {
+        if (!usesStorageHost) {
+          const request = (path: string, init?: RequestInit) =>
+            fetch(new URL(path, platform.endpoints.http), {
+              ...init,
+              headers: { ...Object.fromEntries(new Headers(init?.headers)), Host: name },
+              signal: AbortSignal.timeout(15_000),
+            });
+          await action(request);
+          return;
+        }
+        // App Services have no selectors; forward the storage hostgroup HTTP listener.
+        const localPort = 18_000 + (Number(Bun.hash(name)) % 1_000);
+        const forward = Bun.spawn(
+          kubectl(platform, "port-forward", "--address=127.0.0.1", "service/hostgroup-storage", `${localPort}:9191`),
+          { stdout: "pipe", stderr: "pipe" },
+        );
+        try {
+          const reader = forward.stdout.getReader();
+          let log = "";
+          const ready = async () => {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) throw new Error(`port-forward for ${name} exited before ready`);
+              log += new TextDecoder().decode(value);
+              if (log.includes("Forwarding from")) return;
+            }
+          };
+          await Promise.race([
+            ready(),
+            Bun.sleep(30_000).then(() => {
+              throw new Error(`port-forward for ${name} timed out`);
+            }),
+          ]);
+          void (async () => {
+            while (!(await reader.read()).done) {
+              /* drain */
+            }
+          })();
+          const base = `http://127.0.0.1:${localPort}`;
+          const request = (path: string, init?: RequestInit) =>
+            fetch(new URL(path, base), {
+              ...init,
+              headers: { ...Object.fromEntries(new Headers(init?.headers)), Host: name },
+              signal: AbortSignal.timeout(15_000),
+            });
+          await action(request);
+        } finally {
+          forward.kill();
+          await forward.exited;
+        }
+      };
+      if (name === "static-site") await check(`${name}-live`, () => withHttp((request) => verifyStaticSite(request)));
+      else if (name === "private-checkout") await check(`${name}-live`, () => withHttp(async (request) => {
         const response = await request("/verify"); assert.equal(response.status, 200);
         assert.deepEqual(await response.json(), { totalCents: 3000, denied: true, transport: "in-process" });
-      });
-      else if (name === "schema-migrations") await check(`${name}-live`, async () => {
+      }));
+      else if (name === "schema-migrations") await check(`${name}-live`, () => withHttp(async (request) => {
         const response = await request("/verify"); assert.equal(response.status, 200);
         assert.deepEqual(await response.json(), { versions: ["1", "2"], upToDate: true });
-      });
-      else if (name === "actor-counter") await check(`${name}-live`, async () => {
+      }));
+      else if (name === "actor-counter") await check(`${name}-live`, () => withHttp(async (request) => {
         const key = `probe-${Date.now()}`;
         const invoke = async (method: string, args: unknown[] = [], expectedStatus = 200) => {
           const response = await request(`/_actors/VerificationCounter/${key}/${method}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ args }) });
@@ -117,7 +174,7 @@ try {
         assert.equal(await invoke("increment", [2]), 2);
         await invoke("rollback", [], 500);
         assert.equal(await invoke("read"), 2);
-      });
+      }));
       else if (name === "scheduled-maintenance") {
         await check(`${name}-live`, async () => {
           const job = `verify-maintenance-${Date.now()}`;
@@ -128,8 +185,36 @@ try {
             assert.match(logs, /"completed":true/);
           } finally { await run(kubectl(platform, "delete", "job", job, "--ignore-not-found", "--wait=false")); }
         });
+      } else if (name === "durable-receipts") {
+        await check(`${name}-live`, () => withHttp(async (request) => {
+          const receiptId = `receipt-${Date.now()}`;
+          const enqueue = await request("/_di/queues/verification-receipts", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ payload: { id: receiptId, amount: 42 }, idempotencyKey: receiptId }),
+          });
+          assert.equal(enqueue.status, 200, await enqueue.text());
+          const duplicate = await request("/_di/queues/verification-receipts", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ payload: { id: receiptId, amount: 42 }, idempotencyKey: receiptId }),
+          });
+          assert.equal(duplicate.status, 200);
+          let completed = false;
+          for (let attempt = 0; attempt < 40; attempt++) {
+            await Bun.sleep(250);
+            const list = await request("/_di/queues/verification-receipts?status=completed");
+            assert.equal(list.status, 200);
+            const body = await list.json() as { jobs?: Array<{ payload?: { id?: string } }> };
+            if ((body.jobs ?? []).some((job) => job.payload?.id === receiptId)) {
+              completed = true;
+              break;
+            }
+          }
+          assert.ok(completed, "queued receipt was not consumed");
+        }));
       } else {
-        await check(`${name}-live`, async () => { throw new Error("No host queue producer/consumer wiring is exposed by the framework; workload readiness does not verify delivery"); });
+        await check(`${name}-live`, async () => { throw new Error(`No live probe implemented for ${name}`); });
       }
     }
   }

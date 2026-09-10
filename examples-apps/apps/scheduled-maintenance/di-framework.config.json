@@ -1,6 +1,5 @@
 {
   "name": "scheduled-maintenance",
   "entry": "src/app.ts",
-  "output": "dist/scheduled-maintenance.wasm",
-  "ingress": false
+  "output": "dist/scheduled-maintenance.wasm"
 }

@@ -1,6 +1,8 @@
+import { TypedRouter } from "@di-framework/http";
 import { Container } from "@di-framework/core";
 import { MaintenanceAudit, ScheduledMaintenance } from "./service";
 export { MaintenanceAudit, ScheduledMaintenance } from "./service";
+
 export function createMaintenance() {
   const container = new Container();
   container.setCronMode("external");
@@ -9,5 +11,9 @@ export function createMaintenance() {
   container.resolve(ScheduledMaintenance);
   return container;
 }
+
 export const container = createMaintenance();
-export default { container };
+const router = TypedRouter();
+router.get("/health", () => Response.json({ app: "scheduled-maintenance", status: "ok" }));
+router.all("*", () => Response.json({ error: "Not found" }, { status: 404 }));
+export default Object.assign(router, { container });
