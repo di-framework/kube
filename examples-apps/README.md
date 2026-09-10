@@ -1,5 +1,10 @@
 # DI Framework apps on Kubesolo
 
+The [main verification apps](FEATURES.md) add six prerelease examples for the new
+service bindings, static assets, actors, cron, queues, and migrations. Run
+`bun run verify:features` to rebuild, deploy, and verify them against the linked framework.
+
+
 Fifteen TypeScript HTTP apps use locally linked DI Framework packages and target
 WASI 0.3 components with its wasmCloud extension. Each default export is a Fetch
 router; the extension supplies the WASI adapter and generates the Kubernetes

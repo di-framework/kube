@@ -1,0 +1,5 @@
+{
+  "name": "actor-counter",
+  "entry": "src/app.ts",
+  "output": "dist/actor-counter.wasm"
+}

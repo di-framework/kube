@@ -2,7 +2,7 @@ import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 
 const workspace = resolve(import.meta.dir, "..");
-const framework = resolve(workspace, "../../di-framework");
+const framework = resolve(process.env.DI_FRAMEWORK_DIR ?? resolve(workspace, "../../di-framework"));
 const manifest = await Bun.file(resolve(workspace, "package.json")).json();
 for (const name of Object.keys(manifest.overrides)) {
   if (!name.startsWith("@di-framework/")) continue;
@@ -22,3 +22,7 @@ for (const name of Object.keys(manifest.overrides)) {
   if (actual !== expected) throw new Error(`${name} resolves to ${actual}, expected ${expected}`);
   console.log(`${name} → ${actual}`);
 }
+
+const revision = Bun.spawnSync(["git", "-C", framework, "rev-parse", "HEAD"]);
+if (revision.exitCode !== 0) throw new Error("Cannot record framework revision");
+await Bun.write(resolve(workspace, ".local/framework.json"), JSON.stringify({ directory: framework, revision: revision.stdout.toString().trim() }, null, 2) + "\n");

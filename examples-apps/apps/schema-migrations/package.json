@@ -1,0 +1,11 @@
+{
+  "name": "@di-framework-kube-examples/schema-migrations",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@di-framework/core": "5.3.0",
+    "@di-framework/http": "5.3.0",
+    "@di-framework/repo": "5.3.0"
+  }
+}

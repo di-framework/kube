@@ -4,15 +4,21 @@ import { binary, instance, kubectl, outputs, run, workspace } from "./platform";
 
 // The app config is the single source of project identity; new apps are discovered.
 const names: string[] = [];
+const projectConfigs = new Map<string, { ingress?: boolean; applicationType?: string; persistentStorage?: boolean }>();
 for (const directory of readdirSync(resolve(workspace, "apps"))) {
   const file = Bun.file(resolve(workspace, "apps", directory, "di-framework.config.json"));
-  if (await file.exists()) names.push((await file.json()).name);
+  if (await file.exists()) {
+    const config = await file.json();
+    names.push(config.name);
+    projectConfigs.set(config.name, config);
+  }
 }
 const requested = process.argv.slice(2);
 for (const name of requested) {
   if (!names.includes(name)) throw new Error(`Unknown app ${name}; choose ${names.join(", ")}`);
 }
 const selected = requested.length ? requested : names.sort();
+if (selected.includes("static-site")) await import("./prepare-features");
 const port = Number(process.env.DI_REGISTRY_PORT ?? "25001");
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("DI_REGISTRY_PORT must be 1024–65535");
 const httpPort = Number(process.env.DI_HTTP_PORT ?? "28080");
@@ -22,11 +28,20 @@ if (httpPort === port) throw new Error("DI_HTTP_PORT and DI_REGISTRY_PORT must b
 // Keep the TLS-capable host for every app deployment, so Helm cannot revert it.
 const { prepareTlsRuntime } = await import("./tls-runtime");
 await prepareTlsRuntime();
+// PVC must exist before Helm creates hostgroup-storage (volumeMount references it).
+{
+  const prior = await outputs().catch(() => undefined);
+  if (prior) {
+    await run(kubectl(prior, "apply", "-f", resolve(workspace, "infra/storage-host.yaml")));
+  }
+}
 // Explicitly scoped to the selected di-framework-kube instance, never kubectl's current context.
-await run([binary, "up", "--name", instance, "--http-port", String(httpPort), "--allow-insecure-registries", "--values", resolve(workspace, "infra/postgres-host.yaml"), "--values", resolve(workspace, "infra/tls-runtime/values.yaml")]);
+await run([binary, "up", "--name", instance, "--http-port", String(httpPort), "--allow-insecure-registries", "--values", resolve(workspace, "infra/postgres-host.yaml"), "--values", resolve(workspace, "infra/tls-runtime/values.yaml"), "--values", resolve(workspace, "infra/storage-host-values.yaml")]);
 const platform = await outputs();
 await run(kubectl(platform, "apply", "-f", resolve(workspace, "infra/registry.yaml")));
 await run(kubectl(platform, "rollout", "status", "deployment/examples-registry", "--timeout=180s"));
+const { provisionStorageHost } = await import("./storage");
+await provisionStorageHost(platform);
 
 if (selected.includes("node-network") || selected.includes("node-http")) {
   await run(kubectl(platform, "apply", "-f", resolve(workspace, "infra/node-compat-echo.yaml")));
@@ -81,6 +96,7 @@ try {
   };
   const deployed: string[] = [];
   const failed: string[] = [];
+  const outcomes: Array<{ app: string; passed: boolean; error?: string }> = [];
   for (const name of selected) {
     try {
       await run([resolve(workspace, "node_modules/.bin/di-framework"), "wasmcloud", "deploy", name, "--yes"], { env });
@@ -97,25 +113,65 @@ try {
       let healthy = false;
       let detail = "no response";
       const deadline = Date.now() + 120_000;
+      const config = projectConfigs.get(name);
+      const usesStorageHost =
+        config?.persistentStorage === true ||
+        ["actor-counter", "durable-receipts", "schema-migrations"].includes(name);
       while (Date.now() < deadline) {
         try {
-          const response = await fetch(new URL("/health", platform.endpoints.http), {
-            headers: { Host: name }, signal: AbortSignal.timeout(5_000),
-          });
+          let response: Response;
+          if (usesStorageHost) {
+            // App Services have no selectors (wasmCloud EndpointSlices); reach the
+            // storage hostgroup HTTP listener and route with the Host header.
+            const localPort = 19_000 + (Number(Bun.hash(name)) % 1_000);
+            const forward = Bun.spawn(
+              kubectl(platform, "port-forward", "--address=127.0.0.1", "service/hostgroup-storage", `${localPort}:9191`),
+              { stdout: "pipe", stderr: "pipe" },
+            );
+            try {
+              const reader = forward.stdout.getReader();
+              let log = "";
+              while (!log.includes("Forwarding from")) {
+                const { done, value } = await reader.read();
+                if (done) throw new Error("port-forward exited");
+                log += new TextDecoder().decode(value);
+              }
+              response = await fetch(new URL("/health", `http://127.0.0.1:${localPort}`), {
+                headers: { Host: name },
+                signal: AbortSignal.timeout(5_000),
+              });
+            } finally {
+              forward.kill();
+              await forward.exited.catch(() => undefined);
+            }
+          } else {
+            response = await fetch(new URL("/health", platform.endpoints.http), {
+              headers: { Host: name },
+              signal: AbortSignal.timeout(5_000),
+            });
+          }
           const body = await response.text();
           detail = `HTTP ${response.status}: ${body}`;
-          if (response.ok && JSON.parse(body).status === "ok") { healthy = true; break; }
-        } catch (error) { detail = String(error); }
+          if (response.ok && JSON.parse(body).status === "ok") {
+            healthy = true;
+            break;
+          }
+        } catch (error) {
+          detail = String(error);
+        }
         await Bun.sleep(1_000);
       }
       if (!healthy) throw new Error(`${name} failed its live /health check: ${detail}`);
       console.log(`${name}: live /health passed`);
       deployed.push(name);
+      outcomes.push({ app: name, passed: true });
     } catch (error) {
       failed.push(name);
+      outcomes.push({ app: name, passed: false, error: String(error) });
       console.error(`${name}: deployment failed: ${error}`);
     }
   }
+  await Bun.write(resolve(workspace, ".local/deployment.json"), JSON.stringify(outcomes, null, 2) + "\n");
   console.log(`\nDeployed ${deployed.join(", ") || "no apps"} to ${instance}. HTTP: ${platform.endpoints.http}`);
   console.log("Run bun run smoke to verify the live APIs.");
   if (failed.length) throw new Error(`Failed to deploy: ${failed.join(", ")}`);

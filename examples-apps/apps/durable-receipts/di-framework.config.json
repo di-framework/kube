@@ -1,0 +1,6 @@
+{
+  "name": "durable-receipts",
+  "entry": "src/app.ts",
+  "output": "dist/durable-receipts.wasm",
+  "applicationType": "worker"
+}

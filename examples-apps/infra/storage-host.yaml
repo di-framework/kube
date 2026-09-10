@@ -1,0 +1,31 @@
+# Shared PVC mounted into the dedicated single-replica storage hostgroup.
+# Application workloads receive per-app hostPath directories under this mount.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: di-framework-storage
+  namespace: wasmcloud
+  labels:
+    app.kubernetes.io/managed-by: di-framework
+    di-framework.dev/role: application-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Host CR for the storage hostgroup (operator creates the Deployment from Host values).
+# When the chart manages hostgroups via values, deploy scripts patch the Deployment directly.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: di-framework-storage-host-notes
+  namespace: wasmcloud
+  labels:
+    app.kubernetes.io/managed-by: di-framework
+data:
+  mountPath: /var/lib/di-framework/storage
+  hostgroup: storage
+  strategy: Recreate
+  replicas: "1"

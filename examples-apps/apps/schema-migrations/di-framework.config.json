@@ -1,0 +1,6 @@
+{
+  "name": "schema-migrations",
+  "entry": "src/app.ts",
+  "output": "dist/schema-migrations.wasm",
+  "persistentStorage": true
+}

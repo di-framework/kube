@@ -1,0 +1,33 @@
+# Dedicated single-replica hostgroup for SQLite-backed workloads.
+# Mounts the shared PVC; each WorkloadDeployment uses a per-app hostPath subdirectory.
+#
+# Helm replaces the hostGroups array, so keep the default group's NodePort HTTP
+# settings in sync with di-framework-kube's chart values (NodePort 30080).
+runtime:
+  hostGroups:
+    - name: default
+      replicas: 1
+      http:
+        enabled: true
+        nodePort: 30080
+        port: 9191
+      service:
+        type: NodePort
+      webgpu:
+        enabled: false
+    - name: storage
+      replicas: 1
+      http:
+        enabled: true
+        port: 9191
+      service:
+        type: ClusterIP
+      webgpu:
+        enabled: false
+      volumes:
+        - name: di-framework-storage
+          persistentVolumeClaim:
+            claimName: di-framework-storage
+      volumeMounts:
+        - name: di-framework-storage
+          mountPath: /var/lib/di-framework/storage
