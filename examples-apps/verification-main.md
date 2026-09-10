@@ -1,6 +1,31 @@
-Current draft progress: [candidate 3a64e91](verification/3a64e91/README.md).
+# Current main verification
 
-# Main verification before 5.3.1
+**Passing against framework main `e4d3eda` on 2026-09-10.**
+The full verifier passed **44/44 gates** after rebuilding all 21 framework
+packages from a clean checkout. TypeScript checks and all **51 local tests** pass.
+All six feature apps pass component builds, strict server validation, deployment,
+and live behavioral probes. The complete set of 21 example apps was then rebuilt
+and deployed, and the **64/64 live API regression checks** passed.
+
+See the [fresh report and logs](verification/e4d3eda/README.md) for exact
+framework and runtime revisions, component hashes, and gate results.
+The [verification guide](FEATURES.md) describes the commands and coverage.
+
+| Feature app | Live evidence |
+| --- | --- |
+| Private checkout | Authorized binding resolves; ungranted caller is rejected |
+| Static site | Content, binary assets, metadata, caching, HEAD, and rejection checks |
+| Actor counter | Increment, read, and transactional rollback on the storage host |
+| Scheduled maintenance | Generated CronJob's manually created Job completes |
+| Durable receipts | HTTP enqueue, duplicate submission, and completed consumption |
+| Schema migrations | SQLite schema and applied migration versions are verified |
+
+## Historical evidence
+
+The [partial candidate report for `3a64e91`](verification/3a64e91/README.md)
+and the baseline below are historical results, superseded by the current run.
+
+## Baseline `870726c` — 2026-09-09
 
 **Not ready for release on the current wasmCloud target.** Native tests pass,
 but component compilation and real Kubernetes schema validation expose blockers.
@@ -18,7 +43,7 @@ wasmCloud operator 2.8.0, the existing TLS-enabled 2.8.0 wash host, and
 componentize-qjs 0.4.4-di.2. Package links point to the recorded main worktree,
 including actors, queues, repo, and wasmCloud transitive dependencies.
 
-## Results
+### Results
 
 | Example | Native acceptance | Component build | Kubernetes server validation | Live candidate |
 | --- | --- | --- | --- | --- |
@@ -34,7 +59,7 @@ includes preparation, typechecking, the local acceptance suite, and three gates
 per app (build, manifest generation, server validation). A successful dry run
 only validates the API schema; it does not prove runtime behavior.
 
-## Reproduced blockers
+### Reproduced blockers
 
 1. **HTTP regression:** the newly exported static asset code imports filesystem
    functions that the wasmCloud compatibility module does not export. The
@@ -66,7 +91,7 @@ submitted with `kubectl apply --dry-run=server --validate=strict`; they were not
 patched to hide unsupported fields. Existing cluster workloads and data were
 preserved. No workflow approval or release publication was performed.
 
-## Reproduce
+### Reproduce
 
 See [FEATURES.md](FEATURES.md) for package linking and worktree setup, then:
 

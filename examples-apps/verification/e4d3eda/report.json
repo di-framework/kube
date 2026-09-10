@@ -1,0 +1,280 @@
+{
+  "artifacts": {
+    "private-checkout": {
+      "sha256": "d9268cfe6daed5db997bfc418050c39c1a2aa1933a6b046aebfe04e8b1a83416",
+      "bytes": 7060271,
+      "deploymentImage": "examples-registry.wasmcloud.svc.cluster.local:5000/examples/private-checkout:sha256-45215dd9ca2c9fc039a3bc7cb70ed32ebe757e8ace35ecfd35e33f411e2217d8"
+    },
+    "static-site": {
+      "sha256": "2991655f63366708667ade5cd69456041e84c35ceec02e6de54af066e662e152",
+      "bytes": 7000359,
+      "deploymentImage": "examples-registry.wasmcloud.svc.cluster.local:5000/examples/static-site:sha256-a79829fac67190f811ec7e22c80e59266ae03bb701cc27c560fd820d3787176f"
+    },
+    "actor-counter": {
+      "sha256": "435b9a34d8e4b8b37914383695c2af9e989858fe034c1957e0b858c65908f7f3",
+      "bytes": 7011720,
+      "deploymentImage": "examples-registry.wasmcloud.svc.cluster.local:5000/examples/actor-counter:sha256-dd1b3b5dbc9c4038e4d1ed9c5cd889f547e465a5b759637a8b02d9eb23c9cbfd"
+    },
+    "scheduled-maintenance": {
+      "sha256": "f669ef37b1b383f7a6f7e4f027e55d7aee6b1d7ee44c97bf8a9445bc31f43a66",
+      "bytes": 7032947,
+      "deploymentImage": "examples-registry.wasmcloud.svc.cluster.local:5000/examples/scheduled-maintenance:sha256-40370d2af2f3df6e741e821e6bf32319e0e82cef373afc71efa2df1538e39bde"
+    },
+    "durable-receipts": {
+      "sha256": "e64d555cab3619817394f901adcf36b5a73ee5ca2a0f5f3d370c1e5c46104f47",
+      "bytes": 7204316,
+      "deploymentImage": "examples-registry.wasmcloud.svc.cluster.local:5000/examples/durable-receipts:sha256-0f69012354ca7f8732e9961d04e69933a8960ef7ff3784660717d4ba8a38af15"
+    },
+    "schema-migrations": {
+      "sha256": "f7376592217a34a67a0222fe0cd4a28b73ac9bca562236e97fbbcd1714ee52b4",
+      "bytes": 6998290,
+      "deploymentImage": "examples-registry.wasmcloud.svc.cluster.local:5000/examples/schema-migrations:sha256-26ddabb0d4473710c1e0dfef21c666f40188f50cab144b02a76821ecda116f89"
+    }
+  },
+  "runtime": [
+    {
+      "name": "hostgroup-default",
+      "images": [
+        "docker.io/di-framework/wash:2.8.0-tls"
+      ]
+    },
+    {
+      "name": "hostgroup-storage",
+      "images": [
+        "docker.io/di-framework/wash:2.8.0-tls"
+      ]
+    },
+    {
+      "name": "runtime-operator",
+      "images": [
+        "ghcr.io/wasmcloud/runtime-operator:2.8.0"
+      ]
+    }
+  ],
+  "framework": {
+    "directory": "$FRAMEWORK",
+    "revision": "e4d3eda8d282670bfbff79ef54447ca8c585176e"
+  },
+  "platform": {
+    "namespace": "wasmcloud",
+    "http": "http://127.0.0.1:28080"
+  },
+  "recordedAt": "2026-09-10T13:47:11.561Z",
+  "steps": [
+    {
+      "name": "runtime-version",
+      "passed": true
+    },
+    {
+      "name": "greeter-build",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "greeter-build.txt"
+    },
+    {
+      "name": "prepare",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "prepare.txt"
+    },
+    {
+      "name": "typecheck",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "typecheck.txt"
+    },
+    {
+      "name": "local-tests",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "local-tests.txt"
+    },
+    {
+      "name": "private-checkout-build",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "private-checkout-build.txt"
+    },
+    {
+      "name": "private-checkout-artifact",
+      "passed": true
+    },
+    {
+      "name": "private-checkout-manifest",
+      "passed": true
+    },
+    {
+      "name": "private-checkout-server-validation",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "private-checkout-server-validation.txt"
+    },
+    {
+      "name": "static-site-build",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "static-site-build.txt"
+    },
+    {
+      "name": "static-site-artifact",
+      "passed": true
+    },
+    {
+      "name": "static-site-manifest",
+      "passed": true
+    },
+    {
+      "name": "static-site-server-validation",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "static-site-server-validation.txt"
+    },
+    {
+      "name": "actor-counter-build",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "actor-counter-build.txt"
+    },
+    {
+      "name": "actor-counter-artifact",
+      "passed": true
+    },
+    {
+      "name": "actor-counter-manifest",
+      "passed": true
+    },
+    {
+      "name": "actor-counter-server-validation",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "actor-counter-server-validation.txt"
+    },
+    {
+      "name": "scheduled-maintenance-build",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "scheduled-maintenance-build.txt"
+    },
+    {
+      "name": "scheduled-maintenance-artifact",
+      "passed": true
+    },
+    {
+      "name": "scheduled-maintenance-manifest",
+      "passed": true
+    },
+    {
+      "name": "scheduled-maintenance-server-validation",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "scheduled-maintenance-server-validation.txt"
+    },
+    {
+      "name": "durable-receipts-build",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "durable-receipts-build.txt"
+    },
+    {
+      "name": "durable-receipts-artifact",
+      "passed": true
+    },
+    {
+      "name": "durable-receipts-manifest",
+      "passed": true
+    },
+    {
+      "name": "durable-receipts-server-validation",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "durable-receipts-server-validation.txt"
+    },
+    {
+      "name": "schema-migrations-build",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "schema-migrations-build.txt"
+    },
+    {
+      "name": "schema-migrations-artifact",
+      "passed": true
+    },
+    {
+      "name": "schema-migrations-manifest",
+      "passed": true
+    },
+    {
+      "name": "schema-migrations-server-validation",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "schema-migrations-server-validation.txt"
+    },
+    {
+      "name": "deploy",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "deploy.txt"
+    },
+    {
+      "name": "private-checkout-deploy",
+      "passed": true
+    },
+    {
+      "name": "private-checkout-live",
+      "passed": true
+    },
+    {
+      "name": "static-site-deploy",
+      "passed": true
+    },
+    {
+      "name": "static-site-live",
+      "passed": true
+    },
+    {
+      "name": "actor-counter-deploy",
+      "passed": true
+    },
+    {
+      "name": "actor-counter-live",
+      "passed": true
+    },
+    {
+      "name": "scheduled-maintenance-deploy",
+      "passed": true
+    },
+    {
+      "name": "scheduled-maintenance-live",
+      "passed": true
+    },
+    {
+      "name": "durable-receipts-deploy",
+      "passed": true
+    },
+    {
+      "name": "durable-receipts-live",
+      "passed": true
+    },
+    {
+      "name": "schema-migrations-deploy",
+      "passed": true
+    },
+    {
+      "name": "schema-migrations-live",
+      "passed": true
+    },
+    {
+      "name": "smoke-candidates-deploy",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "smoke-candidates-deploy.txt"
+    },
+    {
+      "name": "candidate-smoke",
+      "passed": true,
+      "detail": "exit 0",
+      "log": "candidate-smoke.txt"
+    }
+  ],
+  "passed": true
+}

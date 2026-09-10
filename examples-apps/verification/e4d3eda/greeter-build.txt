@@ -1,0 +1,12 @@
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/greeter/.di-framework/wit
+  JS:     $EXAMPLES/apps/greeter/.di-framework/component.js
+  Output: $EXAMPLES/apps/greeter/dist/greeter.wasm
+Component written to $EXAMPLES/apps/greeter/dist/greeter.wasm
+  Size: 5740548 bytes
+Building greeter...
+Composing di-framework:sqlite provider...
+Built dist/greeter.wasm
+Built dist/greeter.wasm

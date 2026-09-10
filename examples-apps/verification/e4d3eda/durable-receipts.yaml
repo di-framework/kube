@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: durable-receipts
+  namespace: wasmcloud
+  labels:
+    app.kubernetes.io/managed-by: di-framework
+    app.kubernetes.io/name: durable-receipts
+    di-framework.dev/application: "durable-receipts"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+---
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: durable-receipts
+  namespace: wasmcloud
+  labels:
+    app.kubernetes.io/managed-by: di-framework
+    app.kubernetes.io/name: durable-receipts
+    di-framework.dev/application: "durable-receipts"
+spec:
+  replicas: 1
+  deployPolicy: Recreate
+  template:
+    spec:
+      hostSelector:
+        hostgroup: storage
+      volumes:
+        - name: app-storage
+          hostPath:
+            path: "/var/lib/di-framework/storage/durable-receipts"
+      kubernetes:
+        service:
+          name: durable-receipts
+      components:
+        - name: durable-receipts
+          image: "registry.invalid/verification:probe"
+          localResources:
+            environment:
+              config:
+                DI_QUEUE_MODE: "sqlite"
+                DI_QUEUE_VERIFICATION_RECEIPTS_BACKOFF_MS: "1"
+                DI_QUEUE_VERIFICATION_RECEIPTS_CONCURRENCY: "1"
+                DI_QUEUE_VERIFICATION_RECEIPTS_MAX_RETRIES: "2"
+                DI_QUEUE_VERIFICATION_RECEIPTS_TIMEOUT_MS: "1000"
+                DI_SQLITE_BACKEND: "wasm"
+                DI_STORAGE_DIR: "/data"
+                MIGRATION_DB_PATH: "/data/migrations.db"
+                QUEUE_DB_PATH: "/data/queue.db"
+            volumeMounts:
+              - name: app-storage
+                mountPath: /data
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          version: "0.3.0"
+          interfaces:
+            - handler
+          config:
+            "host": "durable-receipts"
+        - namespace: di-framework
+          package: sqlite
+          version: "0.1.0"
+          interfaces:
+            - types
+            - database

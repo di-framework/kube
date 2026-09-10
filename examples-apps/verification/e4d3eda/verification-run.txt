@@ -1,0 +1,50 @@
+$ bun scripts/verify-features.ts
+PASS runtime-version
+PASS greeter-build ($EXAMPLES/.local/verification-main/greeter-build.log)
+PASS prepare ($EXAMPLES/.local/verification-main/prepare.log)
+PASS typecheck ($EXAMPLES/.local/verification-main/typecheck.log)
+PASS local-tests ($EXAMPLES/.local/verification-main/local-tests.log)
+PASS private-checkout-build ($EXAMPLES/.local/verification-main/private-checkout-build.log)
+PASS private-checkout-artifact
+PASS private-checkout-manifest
+PASS private-checkout-server-validation ($EXAMPLES/.local/verification-main/private-checkout-server-validation.log)
+PASS static-site-build ($EXAMPLES/.local/verification-main/static-site-build.log)
+PASS static-site-artifact
+PASS static-site-manifest
+PASS static-site-server-validation ($EXAMPLES/.local/verification-main/static-site-server-validation.log)
+PASS actor-counter-build ($EXAMPLES/.local/verification-main/actor-counter-build.log)
+PASS actor-counter-artifact
+PASS actor-counter-manifest
+PASS actor-counter-server-validation ($EXAMPLES/.local/verification-main/actor-counter-server-validation.log)
+PASS scheduled-maintenance-build ($EXAMPLES/.local/verification-main/scheduled-maintenance-build.log)
+PASS scheduled-maintenance-artifact
+PASS scheduled-maintenance-manifest
+PASS scheduled-maintenance-server-validation ($EXAMPLES/.local/verification-main/scheduled-maintenance-server-validation.log)
+PASS durable-receipts-build ($EXAMPLES/.local/verification-main/durable-receipts-build.log)
+PASS durable-receipts-artifact
+PASS durable-receipts-manifest
+PASS durable-receipts-server-validation ($EXAMPLES/.local/verification-main/durable-receipts-server-validation.log)
+PASS schema-migrations-build ($EXAMPLES/.local/verification-main/schema-migrations-build.log)
+PASS schema-migrations-artifact
+PASS schema-migrations-manifest
+PASS schema-migrations-server-validation ($EXAMPLES/.local/verification-main/schema-migrations-server-validation.log)
+PASS deploy ($EXAMPLES/.local/verification-main/deploy.log)
+PASS private-checkout-deploy
+PASS private-checkout-live
+PASS static-site-deploy
+PASS static-site-live
+PASS actor-counter-deploy
+PASS actor-counter-live
+PASS scheduled-maintenance-deploy
+job.batch/verify-maintenance-1789047798876 created
+job.batch/verify-maintenance-1789047798876 condition met
+job.batch "verify-maintenance-1789047798876" deleted from wasmcloud namespace
+PASS scheduled-maintenance-live
+PASS durable-receipts-deploy
+PASS durable-receipts-live
+PASS schema-migrations-deploy
+PASS schema-migrations-live
+PASS smoke-candidates-deploy ($EXAMPLES/.local/verification-main/smoke-candidates-deploy.log)
+PASS candidate-smoke ($EXAMPLES/.local/verification-main/candidate-smoke.log)
+
+44/44 checks passed; report: $EXAMPLES/.local/verification-main/report.json

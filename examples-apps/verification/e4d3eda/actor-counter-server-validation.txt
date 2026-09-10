@@ -1,0 +1,2 @@
+service/actor-counter configured (server dry run)
+workloaddeployment.runtime.wasmcloud.dev/actor-counter configured (server dry run)

@@ -1,0 +1,2 @@
+service/static-site configured (server dry run)
+workloaddeployment.runtime.wasmcloud.dev/static-site configured (server dry run)

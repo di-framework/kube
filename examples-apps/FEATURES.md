@@ -3,16 +3,16 @@
 These six apps consume the real framework packages from a chosen main worktree.
 They cover the additions from PRs #414–#423. The verification command exits
 nonzero when a build, Kubernetes validation, deployment, or live probe fails.
-The [recorded verification](verification-main.md) currently identifies release blockers.
+See the [recorded verification](verification-main.md) for the latest results and historical blockers.
 
 | App | Local verification | Kubernetes acceptance |
 | --- | --- | --- |
 | `private-checkout` | Named service injection, authorized checkout, rejected unbound caller | `/verify` through the compiled component; these two services share one component |
 | `static-site` | Packaged HTML/JSON, MIME and cache headers, ETag/304, HEAD, missing and traversal paths | The same assertions through HTTP ingress |
-| `actor-counter` | Serialized calls, transactional rollback, migrations, deduplication, SQLite restart, inspection/reload/reset, actor CLI; separate RPC test over loopback HTTP with grants and deadlines | Generated actor adapter, persistent-volume manifest, remote increment/read/rollback |
+| `actor-counter` | Serialized calls, transactional rollback, migrations, deduplication, SQLite restart, inspection/reload/reset, actor CLI; separate RPC test over loopback HTTP with grants and deadlines | Generated actor adapter on the PVC-backed storage host; remote increment/read/rollback |
 | `scheduled-maintenance` | External mode suppresses timers, resolves injected audit service, awaits completion | Generated CronJob invoked manually and completion confirmed from logs |
-| `durable-receipts` | Producer idempotency, persisted queue restart, retry/backoff, dead-letter retention, manual retry, queue CLI | Worker component and queue consumer manifest; readiness alone does not establish delivery |
-| `schema-migrations` | SQLite schema upgrade ordering, dry run, history, restart, migration CLI | Attempt to build the same SQLite-backed app as a component and invoke `/verify` |
+| `durable-receipts` | Producer idempotency, persisted queue restart, retry/backoff, dead-letter retention, manual retry, queue CLI | HTTP enqueue and duplicate submission, followed by polling for completed consumption on the storage host |
+| `schema-migrations` | SQLite schema upgrade ordering, dry run, history, restart, migration CLI | Build the SQLite-backed component, deploy on the storage host, and invoke `/verify` to check schema and migration history |
 
 The actors and schema examples deliberately use the new SQLite APIs. Local Bun
 success is not evidence that those APIs work inside QuickJS. The build and
@@ -67,7 +67,12 @@ The annual cron schedule avoids continuous probe jobs; acceptance creates a
 uniquely named Job, waits for completion, then removes only that Job.
 The SQLite tests use temporary directories and remove them on completion.
 
-The queue acceptance cannot claim successful host delivery until a real producer
-and supported host queue configuration are available. If schema validation starts
-passing, the verifier still reports that missing delivery check rather than
-counting WorkloadDeployment readiness as a successful queue test.
+The queue probe submits a uniquely identified receipt through the generated HTTP
+control API, submits the same idempotency key again, and polls until that receipt
+is completed. Native tests separately cover retries, dead letters, and persistence
+across restart. The live probe does not establish those lifecycle behaviors.
+
+A full successful feature run also rebuilds and deploys all example apps before
+running the 64-check smoke suite. Missing deployment, live, or smoke evidence
+fails the aggregate result. Docker Desktop and the existing Kubesolo instance
+must be running before invoking the verifier.

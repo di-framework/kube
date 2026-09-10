@@ -1,0 +1,616 @@
+$ bun scripts/deploy.ts
+Preparing TLS runtime for kubesolo-local
+Downloading checksum-verified containerd image import tool
+unpacking docker.io/di-framework/wash:2.8.0-tls (sha256:00f802dd795876cec409574df6d6a4df900c5b10c5b63ef898ef7b5f1be0fd00)...done
+TLS runtime docker.io/di-framework/wash:2.8.0-tls imported into kubesolo-local
+persistentvolumeclaim/di-framework-storage unchanged
+configmap/di-framework-storage-host-notes unchanged
+Ensuring Kubesolo v1.2.0 (container mode)...
+Waiting for the Kubernetes API...
+Installing wasmCloud 2.8.0...
+Pulled: ghcr.io/wasmcloud/charts/runtime-operator:2.8.0
+Digest: sha256:63e87326539df1146bf2fe9f12982d4eb5cfb4704252067d4a6932478bb34912
+wasmCloud is deployed in namespace wasmcloud (revision 60).
+Workload HTTP entrypoint: http://127.0.0.1:28080 (route with the workload Host header)
+persistentvolumeclaim/examples-registry unchanged
+deployment.apps/examples-registry unchanged
+service/examples-registry unchanged
+deployment "examples-registry" successfully rolled out
+persistentvolumeclaim/di-framework-storage unchanged
+configmap/di-framework-storage-host-notes unchanged
+deployment.apps/hostgroup-storage patched (no change)
+deployment "hostgroup-storage" successfully rolled out
+All commands and output from this session will be recorded in container logs, including credentials and sensitive information passed through the command prompt.
+If you don't see a command prompt, try pressing enter.
+warning: couldn't attach to pod/di-framework-storage-init, falling back to streaming logs: Internal error occurred: unable to upgrade connection: container init not found in pod di-framework-storage-init_wasmcloud
+pod "di-framework-storage-init" deleted from wasmcloud namespace
+configmap/node-compat-echo unchanged
+deployment.apps/node-compat-echo unchanged
+service/node-compat-echo unchanged
+deployment "node-compat-echo" successfully rolled out
+persistentvolumeclaim/examples-postgres unchanged
+deployment.apps/examples-postgres unchanged
+service/examples-postgres unchanged
+deployment "examples-postgres" successfully rolled out
+configmap/binding-config unchanged
+configmap/binding-secret-check unchanged
+deployment.apps/binding-redis unchanged
+service/binding-redis unchanged
+deployment "binding-redis" successfully rolled out
+configmap/binding-keyvalue unchanged
+deployment.apps/binding-nats unchanged
+service/binding-nats unchanged
+deployment "binding-nats" successfully rolled out
+configmap/binding-blobstore unchanged
+configmap/binding-echo unchanged
+deployment.apps/binding-echo unchanged
+service/binding-echo unchanged
+deployment "binding-echo" successfully rolled out
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/actor-counter/.di-framework/wit
+  JS:     $EXAMPLES/apps/actor-counter/.di-framework/component.js
+  Output: $EXAMPLES/apps/actor-counter/dist/actor-counter.wasm
+Component written to $EXAMPLES/apps/actor-counter/dist/actor-counter.wasm
+  Size: 5754319 bytes
+service/actor-counter configured
+workloaddeployment.runtime.wasmcloud.dev/actor-counter unchanged
+Building actor-counter...
+Composing di-framework:sqlite provider...
+Built dist/actor-counter.wasm
+Deploying actor-counter to target kubesolo...
+Publishing dist/actor-counter.wasm as 127.0.0.1:25001/examples/actor-counter:sha256-dd1b3b5dbc9c4038e4d1ed9c5cd889f547e465a5b759637a8b02d9eb23c9cbfd...
+OCI tag 127.0.0.1:25001/examples/actor-counter:sha256-dd1b3b5dbc9c4038e4d1ed9c5cd889f547e465a5b759637a8b02d9eb23c9cbfd already exists; keeping it immutable.
+Applying WorkloadDeployment actor-counter in wasmcloud...
+Deployed actor-counter to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/actor-counter:sha256-dd1b3b5dbc9c4038e4d1ed9c5cd889f547e465a5b759637a8b02d9eb23c9cbfd).
+service/actor-counter patched
+actor-counter: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/blobstore/.di-framework/wit
+  JS:     $EXAMPLES/apps/blobstore/.di-framework/component.js
+  Output: $EXAMPLES/apps/blobstore/dist/blobstore.wasm
+Component written to $EXAMPLES/apps/blobstore/dist/blobstore.wasm
+  Size: 5819423 bytes
+Preparing dist/blobstore.wasm
+Uploading 74ca19cc3eb4 dist/blobstore.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  74ca19cc3eb4 dist/blobstore.wasm
+Uploading 02159f01c446 application/vnd.oci.image.manifest.v1+json
+Uploaded  02159f01c446 application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/blobstore:sha256-ad1b78c6132ef6badf611c6496b8aceadfb6ae32124d22b1461ee64b83b6af57
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:02159f01c44639e44835b7f9b8ae3f4d75a929157f98a89b84bba8417ad66872
+service/blobstore configured
+workloaddeployment.runtime.wasmcloud.dev/blobstore configured
+Building blobstore...
+Composing di-framework:sqlite provider...
+Built dist/blobstore.wasm
+Deploying blobstore to target kubesolo...
+Publishing dist/blobstore.wasm as 127.0.0.1:25001/examples/blobstore:sha256-ad1b78c6132ef6badf611c6496b8aceadfb6ae32124d22b1461ee64b83b6af57...
+Applying WorkloadDeployment blobstore in wasmcloud...
+Deployed blobstore to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/blobstore:sha256-ad1b78c6132ef6badf611c6496b8aceadfb6ae32124d22b1461ee64b83b6af57).
+service/blobstore patched
+blobstore: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/catalog/.di-framework/wit
+  JS:     $EXAMPLES/apps/catalog/.di-framework/component.js
+  Output: $EXAMPLES/apps/catalog/dist/catalog.wasm
+Component written to $EXAMPLES/apps/catalog/dist/catalog.wasm
+  Size: 5745156 bytes
+Preparing dist/catalog.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploading d64a4694efa2 dist/catalog.wasm
+Uploaded  d64a4694efa2 dist/catalog.wasm
+Uploading 3a72fd365b05 application/vnd.oci.image.manifest.v1+json
+Uploaded  3a72fd365b05 application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/catalog:sha256-ec8b892d8ef3131520913b8cd6ad8fa11c6f935adf4bd07b1452df363db64421
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:3a72fd365b05d731cd4731536f4366e22d1cc386c61dbc937298b75c0a065f66
+service/catalog configured
+workloaddeployment.runtime.wasmcloud.dev/catalog configured
+Building catalog...
+Composing di-framework:sqlite provider...
+Built dist/catalog.wasm
+Deploying catalog to target kubesolo...
+Publishing dist/catalog.wasm as 127.0.0.1:25001/examples/catalog:sha256-ec8b892d8ef3131520913b8cd6ad8fa11c6f935adf4bd07b1452df363db64421...
+Applying WorkloadDeployment catalog in wasmcloud...
+Deployed catalog to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/catalog:sha256-ec8b892d8ef3131520913b8cd6ad8fa11c6f935adf4bd07b1452df363db64421).
+service/catalog patched
+catalog: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/config/.di-framework/wit
+  JS:     $EXAMPLES/apps/config/.di-framework/component.js
+  Output: $EXAMPLES/apps/config/dist/config.wasm
+Component written to $EXAMPLES/apps/config/dist/config.wasm
+  Size: 5783880 bytes
+Preparing dist/config.wasm
+Uploading 2e1919c920ba dist/config.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  2e1919c920ba dist/config.wasm
+Uploading 6ddf14506925 application/vnd.oci.image.manifest.v1+json
+Uploaded  6ddf14506925 application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/config:sha256-e6e5c1bd0b2ada9e2d208087c9cd29511997f1ee742b381956e7d00d84b3ffc0
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:6ddf14506925114c44f12d916a9952730277cbf7a5f878c4af8fefa06aec0b19
+service/config configured
+workloaddeployment.runtime.wasmcloud.dev/config configured
+Building config...
+Composing di-framework:sqlite provider...
+Built dist/config.wasm
+Deploying config to target kubesolo...
+Publishing dist/config.wasm as 127.0.0.1:25001/examples/config:sha256-e6e5c1bd0b2ada9e2d208087c9cd29511997f1ee742b381956e7d00d84b3ffc0...
+Applying WorkloadDeployment config in wasmcloud...
+Deployed config to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/config:sha256-e6e5c1bd0b2ada9e2d208087c9cd29511997f1ee742b381956e7d00d84b3ffc0).
+service/config patched
+config: live /health passed
+[BABEL] Note: The code generator has deoptimised the styling of undefined as it exceeds the max of 500KB.
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/durable-receipts/.di-framework/wit
+  JS:     $EXAMPLES/apps/durable-receipts/.di-framework/component.js
+  Output: $EXAMPLES/apps/durable-receipts/dist/durable-receipts.wasm
+Component written to $EXAMPLES/apps/durable-receipts/dist/durable-receipts.wasm
+  Size: 5946928 bytes
+service/durable-receipts configured
+workloaddeployment.runtime.wasmcloud.dev/durable-receipts unchanged
+Building durable-receipts...
+Composing di-framework:sqlite provider...
+Built dist/durable-receipts.wasm
+Deploying durable-receipts to target kubesolo...
+Publishing dist/durable-receipts.wasm as 127.0.0.1:25001/examples/durable-receipts:sha256-0f69012354ca7f8732e9961d04e69933a8960ef7ff3784660717d4ba8a38af15...
+OCI tag 127.0.0.1:25001/examples/durable-receipts:sha256-0f69012354ca7f8732e9961d04e69933a8960ef7ff3784660717d4ba8a38af15 already exists; keeping it immutable.
+Applying WorkloadDeployment durable-receipts in wasmcloud...
+Deployed durable-receipts to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/durable-receipts:sha256-0f69012354ca7f8732e9961d04e69933a8960ef7ff3784660717d4ba8a38af15).
+service/durable-receipts patched
+durable-receipts: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/greeter/.di-framework/wit
+  JS:     $EXAMPLES/apps/greeter/.di-framework/component.js
+  Output: $EXAMPLES/apps/greeter/dist/greeter.wasm
+Component written to $EXAMPLES/apps/greeter/dist/greeter.wasm
+  Size: 5738992 bytes
+Preparing dist/greeter.wasm
+Uploading 87ba2e6f469c dist/greeter.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  87ba2e6f469c dist/greeter.wasm
+Uploading 71bd697b474e application/vnd.oci.image.manifest.v1+json
+Uploaded  71bd697b474e application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/greeter:sha256-fcb267280ce358c332fda67d3f244657b3a5cf952eb1767697249ee1df67859a
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:71bd697b474e82cc3ed7d3527d7f75b4255a10c052ec0908d6a079b073998cbd
+service/greeter configured
+workloaddeployment.runtime.wasmcloud.dev/greeter configured
+Building greeter...
+Composing di-framework:sqlite provider...
+Built dist/greeter.wasm
+Deploying greeter to target kubesolo...
+Publishing dist/greeter.wasm as 127.0.0.1:25001/examples/greeter:sha256-fcb267280ce358c332fda67d3f244657b3a5cf952eb1767697249ee1df67859a...
+Applying WorkloadDeployment greeter in wasmcloud...
+Deployed greeter to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/greeter:sha256-fcb267280ce358c332fda67d3f244657b3a5cf952eb1767697249ee1df67859a).
+service/greeter patched
+greeter: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/keyvalue/.di-framework/wit
+  JS:     $EXAMPLES/apps/keyvalue/.di-framework/component.js
+  Output: $EXAMPLES/apps/keyvalue/dist/keyvalue.wasm
+Component written to $EXAMPLES/apps/keyvalue/dist/keyvalue.wasm
+  Size: 5801034 bytes
+Preparing dist/keyvalue.wasm
+Uploading fb470da2c086 dist/keyvalue.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  fb470da2c086 dist/keyvalue.wasm
+Uploading 9389a23c3ec9 application/vnd.oci.image.manifest.v1+json
+Uploaded  9389a23c3ec9 application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/keyvalue:sha256-2c611be5a61058888de4da63719cc6d79bc123ab3f5239023f942795831128e7
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:9389a23c3ec9e302defc58e4c13bb74af812e22a1ffed534386ab7f4ecdb076d
+service/keyvalue configured
+workloaddeployment.runtime.wasmcloud.dev/keyvalue configured
+Building keyvalue...
+Composing di-framework:sqlite provider...
+Built dist/keyvalue.wasm
+Deploying keyvalue to target kubesolo...
+Publishing dist/keyvalue.wasm as 127.0.0.1:25001/examples/keyvalue:sha256-2c611be5a61058888de4da63719cc6d79bc123ab3f5239023f942795831128e7...
+Applying WorkloadDeployment keyvalue in wasmcloud...
+Deployed keyvalue to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/keyvalue:sha256-2c611be5a61058888de4da63719cc6d79bc123ab3f5239023f942795831128e7).
+service/keyvalue patched
+keyvalue: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/messaging/.di-framework/wit
+  JS:     $EXAMPLES/apps/messaging/.di-framework/component.js
+  Output: $EXAMPLES/apps/messaging/dist/messaging.wasm
+Component written to $EXAMPLES/apps/messaging/dist/messaging.wasm
+  Size: 5798807 bytes
+Preparing dist/messaging.wasm
+Uploading 1e1ae34b67db dist/messaging.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  1e1ae34b67db dist/messaging.wasm
+Uploading d8a15dbd6fd0 application/vnd.oci.image.manifest.v1+json
+Uploaded  d8a15dbd6fd0 application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/messaging:sha256-743421437e4f1cc669392c2ee4b9da940e3bd6f910e3ce3359a83fcd8f7bfc7a
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:d8a15dbd6fd039df9f3876d16d977a4001af00137beddc5ec2149b510931248a
+service/messaging configured
+workloaddeployment.runtime.wasmcloud.dev/messaging configured
+Building messaging...
+Composing di-framework:sqlite provider...
+Built dist/messaging.wasm
+Deploying messaging to target kubesolo...
+Publishing dist/messaging.wasm as 127.0.0.1:25001/examples/messaging:sha256-743421437e4f1cc669392c2ee4b9da940e3bd6f910e3ce3359a83fcd8f7bfc7a...
+Applying WorkloadDeployment messaging in wasmcloud...
+Deployed messaging to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/messaging:sha256-743421437e4f1cc669392c2ee4b9da940e3bd6f910e3ce3359a83fcd8f7bfc7a).
+service/messaging patched
+messaging: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+[PLUGIN_TIMINGS] Plugin hooks ran for 2.9s of this 3.0s build (95%).
+The slowest hooks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
+  - di-framework-async-context renderChunk (94%, 2.9s, 1 call)
+Additional hook time came from hooks under 1s.
+See https://rolldown.rs/reference/InputOptions.checks#plugintimings for more details.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/node-crypto/.di-framework/wit
+  JS:     $EXAMPLES/apps/node-crypto/.di-framework/component.js
+  Output: $EXAMPLES/apps/node-crypto/dist/node-crypto.wasm
+Component written to $EXAMPLES/apps/node-crypto/dist/node-crypto.wasm
+  Size: 5779744 bytes
+Preparing dist/node-crypto.wasm
+Uploading c19dac61ef09 dist/node-crypto.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  c19dac61ef09 dist/node-crypto.wasm
+Uploading a27dc7645f92 application/vnd.oci.image.manifest.v1+json
+Uploaded  a27dc7645f92 application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/node-crypto:sha256-2cff974154d232ed247538e40e97fdd33c2523cf0d906a6a6b1bb4ee21cdafae
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:a27dc7645f92a1884e5e58818389ce9eafd82ee1d136abafe44b7f1865de5478
+service/node-crypto configured
+workloaddeployment.runtime.wasmcloud.dev/node-crypto configured
+Building node-crypto...
+Composing di-framework:sqlite provider...
+Built dist/node-crypto.wasm
+Deploying node-crypto to target kubesolo...
+Publishing dist/node-crypto.wasm as 127.0.0.1:25001/examples/node-crypto:sha256-2cff974154d232ed247538e40e97fdd33c2523cf0d906a6a6b1bb4ee21cdafae...
+Applying WorkloadDeployment node-crypto in wasmcloud...
+Deployed node-crypto to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/node-crypto:sha256-2cff974154d232ed247538e40e97fdd33c2523cf0d906a6a6b1bb4ee21cdafae).
+service/node-crypto patched
+node-crypto: live /health passed
+[BABEL] Note: The code generator has deoptimised the styling of undefined as it exceeds the max of 500KB.
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+[PLUGIN_TIMINGS] Plugin hooks ran for 2.8s of this 3.0s build (91%).
+The slowest hooks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
+  - di-framework-async-context renderChunk (90%, 2.7s, 1 call)
+Additional hook time came from hooks under 1s.
+See https://rolldown.rs/reference/InputOptions.checks#plugintimings for more details.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/node-http/.di-framework/wit
+  JS:     $EXAMPLES/apps/node-http/.di-framework/component.js
+  Output: $EXAMPLES/apps/node-http/dist/node-http.wasm
+Component written to $EXAMPLES/apps/node-http/dist/node-http.wasm
+  Size: 6158914 bytes
+Preparing dist/node-http.wasm
+Uploading eaacde962d85 dist/node-http.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  eaacde962d85 dist/node-http.wasm
+Uploading 713f8e1d904d application/vnd.oci.image.manifest.v1+json
+Uploaded  713f8e1d904d application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/node-http:sha256-abe5525ed9a0472ba16595b67f7b7463d6a4b2ff75047c51d5e2a38f840376c0
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:713f8e1d904d1bb418310a4e52070568fd482b7602f51a63470047fd02f290ce
+service/node-http configured
+workloaddeployment.runtime.wasmcloud.dev/node-http configured
+Building node-http...
+Composing di-framework:sqlite provider...
+Built dist/node-http.wasm
+Deploying node-http to target kubesolo...
+Publishing dist/node-http.wasm as 127.0.0.1:25001/examples/node-http:sha256-abe5525ed9a0472ba16595b67f7b7463d6a4b2ff75047c51d5e2a38f840376c0...
+Applying WorkloadDeployment node-http in wasmcloud...
+Deployed node-http to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/node-http:sha256-abe5525ed9a0472ba16595b67f7b7463d6a4b2ff75047c51d5e2a38f840376c0).
+service/node-http patched
+node-http: live /health passed
+[BABEL] Note: The code generator has deoptimised the styling of undefined as it exceeds the max of 500KB.
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+[PLUGIN_TIMINGS] Plugin hooks ran for 3.0s of this 3.2s build (94%).
+The slowest hooks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
+  - di-framework-async-context renderChunk (92%, 3.0s, 1 call)
+Additional hook time came from hooks under 1s.
+See https://rolldown.rs/reference/InputOptions.checks#plugintimings for more details.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/node-network/.di-framework/wit
+  JS:     $EXAMPLES/apps/node-network/.di-framework/component.js
+  Output: $EXAMPLES/apps/node-network/dist/node-network.wasm
+Component written to $EXAMPLES/apps/node-network/dist/node-network.wasm
+  Size: 6100912 bytes
+Preparing dist/node-network.wasm
+Uploading f894d4bcc421 dist/node-network.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  f894d4bcc421 dist/node-network.wasm
+Uploading bb7e0b637b4c application/vnd.oci.image.manifest.v1+json
+Uploaded  bb7e0b637b4c application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/node-network:sha256-66720bd3d5c12644a6b64d6725785c97346dced04f8ab79b832eb71802d27d9d
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:bb7e0b637b4c2730eca00152039936543439955fd27aa30fc31370c8cfaa3e54
+service/node-network configured
+workloaddeployment.runtime.wasmcloud.dev/node-network configured
+Building node-network...
+Composing di-framework:sqlite provider...
+Built dist/node-network.wasm
+Deploying node-network to target kubesolo...
+Publishing dist/node-network.wasm as 127.0.0.1:25001/examples/node-network:sha256-66720bd3d5c12644a6b64d6725785c97346dced04f8ab79b832eb71802d27d9d...
+Applying WorkloadDeployment node-network in wasmcloud...
+Deployed node-network to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/node-network:sha256-66720bd3d5c12644a6b64d6725785c97346dced04f8ab79b832eb71802d27d9d).
+service/node-network patched
+node-network: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/node-runtime/.di-framework/wit
+  JS:     $EXAMPLES/apps/node-runtime/.di-framework/component.js
+  Output: $EXAMPLES/apps/node-runtime/dist/node-runtime.wasm
+Component written to $EXAMPLES/apps/node-runtime/dist/node-runtime.wasm
+  Size: 5810560 bytes
+Preparing dist/node-runtime.wasm
+Uploading 2f7b903fc387 dist/node-runtime.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  2f7b903fc387 dist/node-runtime.wasm
+Uploading 5f4a1514ac81 application/vnd.oci.image.manifest.v1+json
+Uploaded  5f4a1514ac81 application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/node-runtime:sha256-a2f2e10803238a014ce71f50732f9fbc4854dafc1952b934a927d4ab5d7063ba
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:5f4a1514ac8159ef539427b6358d64dac44767a763db01251f0d3b197ba23785
+service/node-runtime configured
+workloaddeployment.runtime.wasmcloud.dev/node-runtime configured
+Building node-runtime...
+Composing di-framework:sqlite provider...
+Built dist/node-runtime.wasm
+Deploying node-runtime to target kubesolo...
+Publishing dist/node-runtime.wasm as 127.0.0.1:25001/examples/node-runtime:sha256-a2f2e10803238a014ce71f50732f9fbc4854dafc1952b934a927d4ab5d7063ba...
+Applying WorkloadDeployment node-runtime in wasmcloud...
+Deployed node-runtime to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/node-runtime:sha256-a2f2e10803238a014ce71f50732f9fbc4854dafc1952b934a927d4ab5d7063ba).
+service/node-runtime patched
+node-runtime: live /health passed
+[BABEL] Note: The code generator has deoptimised the styling of undefined as it exceeds the max of 500KB.
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/node-tls/.di-framework/wit
+  JS:     $EXAMPLES/apps/node-tls/.di-framework/component.js
+  Output: $EXAMPLES/apps/node-tls/dist/node-tls.wasm
+Component written to $EXAMPLES/apps/node-tls/dist/node-tls.wasm
+  Size: 6285609 bytes
+Preparing dist/node-tls.wasm
+Uploading 8c29240af3a4 dist/node-tls.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  8c29240af3a4 dist/node-tls.wasm
+Uploading 52b481798d77 application/vnd.oci.image.manifest.v1+json
+Uploaded  52b481798d77 application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/node-tls:sha256-9bc31e5a95f483ecb4353291522d6ab047ad07f2db23618b084d383f4404dd5c
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:52b481798d777035d7f61fe12d22f54447d918ef3e4e522464afdd424c00d7ba
+service/node-tls configured
+workloaddeployment.runtime.wasmcloud.dev/node-tls configured
+Building node-tls...
+Composing di-framework:sqlite provider...
+Built dist/node-tls.wasm
+Deploying node-tls to target kubesolo...
+Publishing dist/node-tls.wasm as 127.0.0.1:25001/examples/node-tls:sha256-9bc31e5a95f483ecb4353291522d6ab047ad07f2db23618b084d383f4404dd5c...
+Applying WorkloadDeployment node-tls in wasmcloud...
+Deployed node-tls to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/node-tls:sha256-9bc31e5a95f483ecb4353291522d6ab047ad07f2db23618b084d383f4404dd5c).
+service/node-tls patched
+node-tls: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/outgoing-http/.di-framework/wit
+  JS:     $EXAMPLES/apps/outgoing-http/.di-framework/component.js
+  Output: $EXAMPLES/apps/outgoing-http/dist/outgoing-http.wasm
+Component written to $EXAMPLES/apps/outgoing-http/dist/outgoing-http.wasm
+  Size: 5791555 bytes
+Preparing dist/outgoing-http.wasm
+Uploading b859a691ef53 dist/outgoing-http.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  b859a691ef53 dist/outgoing-http.wasm
+Uploading 0d1d8d82541c application/vnd.oci.image.manifest.v1+json
+Uploaded  0d1d8d82541c application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/outgoing-http:sha256-530bf8054c94c6612cc948df796cab6526e7723b4d98b9e60c3110b73a3782d8
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:0d1d8d82541c9744b50e21ade08c6005f5b7b7e97775788d2561b59acdf31e72
+service/outgoing-http configured
+workloaddeployment.runtime.wasmcloud.dev/outgoing-http configured
+Building outgoing-http...
+Composing di-framework:sqlite provider...
+Built dist/outgoing-http.wasm
+Deploying outgoing-http to target kubesolo...
+Publishing dist/outgoing-http.wasm as 127.0.0.1:25001/examples/outgoing-http:sha256-530bf8054c94c6612cc948df796cab6526e7723b4d98b9e60c3110b73a3782d8...
+Applying WorkloadDeployment outgoing-http in wasmcloud...
+Deployed outgoing-http to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/outgoing-http:sha256-530bf8054c94c6612cc948df796cab6526e7723b4d98b9e60c3110b73a3782d8).
+service/outgoing-http patched
+workloaddeployment.runtime.wasmcloud.dev/outgoing-http patched
+outgoing-http: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/postgres/.di-framework/wit
+  JS:     $EXAMPLES/apps/postgres/.di-framework/component.js
+  Output: $EXAMPLES/apps/postgres/dist/postgres.wasm
+Component written to $EXAMPLES/apps/postgres/dist/postgres.wasm
+  Size: 5863470 bytes
+Preparing dist/postgres.wasm
+Uploading 5b0a161b3f60 dist/postgres.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  5b0a161b3f60 dist/postgres.wasm
+Uploading d9cf8c47967b application/vnd.oci.image.manifest.v1+json
+Uploaded  d9cf8c47967b application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/postgres:sha256-0a988ed883581b2c4b62b1955fcbcfc4605447074a383a96f7847d10814a1210
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:d9cf8c47967bcbd05daf59e87d96ddf5c2af9879ef379c038d5fa5d3e03921e2
+service/postgres configured
+workloaddeployment.runtime.wasmcloud.dev/postgres configured
+Building postgres...
+Composing di-framework:sqlite provider...
+Built dist/postgres.wasm
+Deploying postgres to target kubesolo...
+Publishing dist/postgres.wasm as 127.0.0.1:25001/examples/postgres:sha256-0a988ed883581b2c4b62b1955fcbcfc4605447074a383a96f7847d10814a1210...
+Applying WorkloadDeployment postgres in wasmcloud...
+Deployed postgres to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/postgres:sha256-0a988ed883581b2c4b62b1955fcbcfc4605447074a383a96f7847d10814a1210).
+service/postgres patched
+postgres: live /health passed
+[BABEL] Note: The code generator has deoptimised the styling of undefined as it exceeds the max of 500KB.
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/private-checkout/.di-framework/wit
+  JS:     $EXAMPLES/apps/private-checkout/.di-framework/component.js
+  Output: $EXAMPLES/apps/private-checkout/dist/private-checkout.wasm
+Component written to $EXAMPLES/apps/private-checkout/dist/private-checkout.wasm
+  Size: 5802867 bytes
+service/private-checkout configured
+workloaddeployment.runtime.wasmcloud.dev/private-checkout unchanged
+Building private-checkout...
+Composing di-framework:sqlite provider...
+Built dist/private-checkout.wasm
+Deploying private-checkout to target kubesolo...
+Publishing dist/private-checkout.wasm as 127.0.0.1:25001/examples/private-checkout:sha256-45215dd9ca2c9fc039a3bc7cb70ed32ebe757e8ace35ecfd35e33f411e2217d8...
+OCI tag 127.0.0.1:25001/examples/private-checkout:sha256-45215dd9ca2c9fc039a3bc7cb70ed32ebe757e8ace35ecfd35e33f411e2217d8 already exists; keeping it immutable.
+Applying WorkloadDeployment private-checkout in wasmcloud...
+Deployed private-checkout to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/private-checkout:sha256-45215dd9ca2c9fc039a3bc7cb70ed32ebe757e8ace35ecfd35e33f411e2217d8).
+service/private-checkout patched
+private-checkout: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/quotes/.di-framework/wit
+  JS:     $EXAMPLES/apps/quotes/.di-framework/component.js
+  Output: $EXAMPLES/apps/quotes/dist/quotes.wasm
+Component written to $EXAMPLES/apps/quotes/dist/quotes.wasm
+  Size: 5767677 bytes
+Preparing dist/quotes.wasm
+Uploading 6bb0762f0b58 dist/quotes.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  6bb0762f0b58 dist/quotes.wasm
+Uploading 750ba9261ad3 application/vnd.oci.image.manifest.v1+json
+Uploaded  750ba9261ad3 application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/quotes:sha256-5057653c0dab9ae5e72b35e7e72ca53827cc6c1445406fede30fa17520c57964
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:750ba9261ad3561a9f5666980bcaefd88e003304224862a5e4594f35eb938ef1
+service/quotes configured
+workloaddeployment.runtime.wasmcloud.dev/quotes configured
+Building quotes...
+Composing di-framework:sqlite provider...
+Built dist/quotes.wasm
+Deploying quotes to target kubesolo...
+Publishing dist/quotes.wasm as 127.0.0.1:25001/examples/quotes:sha256-5057653c0dab9ae5e72b35e7e72ca53827cc6c1445406fede30fa17520c57964...
+Applying WorkloadDeployment quotes in wasmcloud...
+Deployed quotes to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/quotes:sha256-5057653c0dab9ae5e72b35e7e72ca53827cc6c1445406fede30fa17520c57964).
+service/quotes patched
+quotes: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/scheduled-maintenance/.di-framework/wit
+  JS:     $EXAMPLES/apps/scheduled-maintenance/.di-framework/component.js
+  Output: $EXAMPLES/apps/scheduled-maintenance/dist/scheduled-maintenance.wasm
+Component written to $EXAMPLES/apps/scheduled-maintenance/dist/scheduled-maintenance.wasm
+  Size: 5775535 bytes
+service/scheduled-maintenance configured
+workloaddeployment.runtime.wasmcloud.dev/scheduled-maintenance unchanged
+cronjob.batch/scheduled-maintenance-verify-maintenance unchanged
+Building scheduled-maintenance...
+Composing di-framework:sqlite provider...
+Built dist/scheduled-maintenance.wasm
+Deploying scheduled-maintenance to target kubesolo...
+Publishing dist/scheduled-maintenance.wasm as 127.0.0.1:25001/examples/scheduled-maintenance:sha256-40370d2af2f3df6e741e821e6bf32319e0e82cef373afc71efa2df1538e39bde...
+OCI tag 127.0.0.1:25001/examples/scheduled-maintenance:sha256-40370d2af2f3df6e741e821e6bf32319e0e82cef373afc71efa2df1538e39bde already exists; keeping it immutable.
+Applying WorkloadDeployment scheduled-maintenance in wasmcloud...
+Deployed scheduled-maintenance to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/scheduled-maintenance:sha256-40370d2af2f3df6e741e821e6bf32319e0e82cef373afc71efa2df1538e39bde). Scheduled jobs (1): verify-maintenance
+service/scheduled-maintenance patched
+scheduled-maintenance: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/schema-migrations/.di-framework/wit
+  JS:     $EXAMPLES/apps/schema-migrations/.di-framework/component.js
+  Output: $EXAMPLES/apps/schema-migrations/dist/schema-migrations.wasm
+Component written to $EXAMPLES/apps/schema-migrations/dist/schema-migrations.wasm
+  Size: 5740889 bytes
+service/schema-migrations configured
+workloaddeployment.runtime.wasmcloud.dev/schema-migrations unchanged
+Building schema-migrations...
+Composing di-framework:sqlite provider...
+Built dist/schema-migrations.wasm
+Deploying schema-migrations to target kubesolo...
+Publishing dist/schema-migrations.wasm as 127.0.0.1:25001/examples/schema-migrations:sha256-26ddabb0d4473710c1e0dfef21c666f40188f50cab144b02a76821ecda116f89...
+OCI tag 127.0.0.1:25001/examples/schema-migrations:sha256-26ddabb0d4473710c1e0dfef21c666f40188f50cab144b02a76821ecda116f89 already exists; keeping it immutable.
+Applying WorkloadDeployment schema-migrations in wasmcloud...
+Deployed schema-migrations to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/schema-migrations:sha256-26ddabb0d4473710c1e0dfef21c666f40188f50cab144b02a76821ecda116f89).
+service/schema-migrations patched
+schema-migrations: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/secrets/.di-framework/wit
+  JS:     $EXAMPLES/apps/secrets/.di-framework/component.js
+  Output: $EXAMPLES/apps/secrets/dist/secrets.wasm
+Component written to $EXAMPLES/apps/secrets/dist/secrets.wasm
+  Size: 5786859 bytes
+Preparing dist/secrets.wasm
+Uploading 5839835b26f8 dist/secrets.wasm
+Exists    a8d6b96e2c5b application/vnd.wasm.config.v0+json
+Uploaded  5839835b26f8 dist/secrets.wasm
+Uploading 5d18af33419d application/vnd.oci.image.manifest.v1+json
+Uploaded  5d18af33419d application/vnd.oci.image.manifest.v1+json
+Pushed [registry] 127.0.0.1:25001/examples/secrets:sha256-141cdc09caa5386da4cc09120dbcdcc68f0e5c5415b80589508ebba8e527ab77
+ArtifactType: application/vnd.wasm.config.v0+json
+Digest: sha256:5d18af33419de4274d114fd6ad5919bc08359aca2b4a7b5ada1a051349b02eb3
+service/secrets configured
+workloaddeployment.runtime.wasmcloud.dev/secrets configured
+Building secrets...
+Composing di-framework:sqlite provider...
+Built dist/secrets.wasm
+Deploying secrets to target kubesolo...
+Publishing dist/secrets.wasm as 127.0.0.1:25001/examples/secrets:sha256-141cdc09caa5386da4cc09120dbcdcc68f0e5c5415b80589508ebba8e527ab77...
+Applying WorkloadDeployment secrets in wasmcloud...
+Deployed secrets to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/secrets:sha256-141cdc09caa5386da4cc09120dbcdcc68f0e5c5415b80589508ebba8e527ab77).
+service/secrets patched
+secrets: live /health passed
+[CONFIGURATION_FIELD_CONFLICT] `compilerOptions.experimentalDecorators` from `tsconfig.json` is overridden by `legacy` from `transform.decorator` which has higher priority. Please make sure this is what you expected.
+
+componentize-qjs
+  WIT:    $EXAMPLES/apps/static-site/.di-framework/wit
+  JS:     $EXAMPLES/apps/static-site/.di-framework/component.js
+  Output: $EXAMPLES/apps/static-site/dist/static-site.wasm
+Component written to $EXAMPLES/apps/static-site/dist/static-site.wasm
+  Size: 5742958 bytes
+service/static-site configured
+workloaddeployment.runtime.wasmcloud.dev/static-site unchanged
+Building static-site...
+Composing di-framework:sqlite provider...
+Built dist/static-site.wasm
+Deploying static-site to target kubesolo...
+Publishing dist/static-site.wasm as 127.0.0.1:25001/examples/static-site:sha256-a79829fac67190f811ec7e22c80e59266ae03bb701cc27c560fd820d3787176f...
+OCI tag 127.0.0.1:25001/examples/static-site:sha256-a79829fac67190f811ec7e22c80e59266ae03bb701cc27c560fd820d3787176f already exists; keeping it immutable.
+Applying WorkloadDeployment static-site in wasmcloud...
+Deployed static-site to kubesolo (namespace wasmcloud, examples-registry.wasmcloud.svc.cluster.local:5000/examples/static-site:sha256-a79829fac67190f811ec7e22c80e59266ae03bb701cc27c560fd820d3787176f).
+service/static-site patched
+static-site: live /health passed
+
+Deployed actor-counter, blobstore, catalog, config, durable-receipts, greeter, keyvalue, messaging, node-crypto, node-http, node-network, node-runtime, node-tls, outgoing-http, postgres, private-checkout, quotes, scheduled-maintenance, schema-migrations, secrets, static-site to local. HTTP: http://127.0.0.1:28080
+Run bun run smoke to verify the live APIs.
