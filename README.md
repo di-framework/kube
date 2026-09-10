@@ -74,8 +74,8 @@ di-framework-kube down --purge-cluster
 ## Example applications
 
 Six additional [main verification apps](examples-apps/FEATURES.md) exercise the
-features planned for 5.3.1 against local Bun and the real Kubernetes API.
-The [verification report](examples-apps/verification-main.md) records the release blockers.
+service bindings, static assets, actors, cron, queues, and migrations against
+local Bun and the real Kubernetes API.
 
 
 The [examples-apps workspace](examples-apps/README.md) contains a greeter, product

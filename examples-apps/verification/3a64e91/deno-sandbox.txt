@@ -1,9 +1,0 @@
-Initialize @types/ws@8.18.1
-Initialize itty-router@5.0.22
-Initialize @types/deno@2.5.0
-Initialize zod@4.3.6
-Initialize @types/node@26.4.0
-Initialize undici-types@8.3.0
-Check src/main.ts
-Check src/test.main.ts
-Check src/sandbox.example.ts

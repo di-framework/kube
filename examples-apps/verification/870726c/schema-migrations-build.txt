@@ -1,3 +1,0 @@
-Bundling failed: Build failed with 1 error:
-
-[INVALID_OPTION] Invalid value for option "output.file" - When building multiple chunks, the "output.dir" option must be used, not "output.file". You may set `output.codeSplitting` to `false` when using dynamic imports.

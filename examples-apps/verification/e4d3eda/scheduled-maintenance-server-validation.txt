@@ -1,3 +1,0 @@
-service/scheduled-maintenance configured (server dry run)
-workloaddeployment.runtime.wasmcloud.dev/scheduled-maintenance configured (server dry run)
-cronjob.batch/scheduled-maintenance-verify-maintenance unchanged (server dry run)

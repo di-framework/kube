@@ -1,9 +1,10 @@
-# Verify main before releasing 5.3.1
+# Verify framework features on Kubesolo
 
 These six apps consume the real framework packages from a chosen main worktree.
 They cover the additions from PRs #414–#423. The verification command exits
 nonzero when a build, Kubernetes validation, deployment, or live probe fails.
-See the [recorded verification](verification-main.md) for the latest results and historical blockers.
+Run reports, logs, and generated manifests stay in the ignored `.local/` directory;
+record verification results in the pull request description.
 
 | App | Local verification | Kubernetes acceptance |
 | --- | --- | --- |

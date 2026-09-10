@@ -2,3 +2,6 @@ node_modules/
 .di-framework/
 dist/
 .local/
+
+# Keep exported verification logs and reports out of source control.
+/verification/

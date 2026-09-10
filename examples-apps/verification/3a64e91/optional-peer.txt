@@ -1,5 +1,0 @@
-$ bun scripts/check-ai-utils-optional-peer.ts
-optional-peer smoke: bun passed
-optional-peer smoke: npm passed
-optional-peer smoke: pnpm unavailable (documented skip)
-optional-peer smoke: yarn unavailable (documented skip)

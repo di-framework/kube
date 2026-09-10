@@ -2,7 +2,7 @@
 
 The [main verification apps](FEATURES.md) add six prerelease examples for the new
 service bindings, static assets, actors, cron, queues, and migrations. Run
-`bun run verify:features` before 5.3.1; see the [current results](verification-main.md).
+`bun run verify:features` to rebuild, deploy, and verify them against the linked framework.
 
 
 Fifteen TypeScript HTTP apps use locally linked DI Framework packages and target

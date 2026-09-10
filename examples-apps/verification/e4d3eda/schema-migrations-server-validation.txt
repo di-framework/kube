@@ -1,2 +1,0 @@
-service/schema-migrations configured (server dry run)
-workloaddeployment.runtime.wasmcloud.dev/schema-migrations configured (server dry run)

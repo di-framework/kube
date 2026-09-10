@@ -1,2 +1,0 @@
-service/durable-receipts configured (server dry run)
-workloaddeployment.runtime.wasmcloud.dev/durable-receipts configured (server dry run)
