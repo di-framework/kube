@@ -3,10 +3,11 @@
 `di-framework-kube` is a single distributable CLI that creates an isolated
 [Kubesolo](https://github.com/portainer/kubesolo) cluster and installs the
 [wasmCloud runtime operator](https://wasmcloud.com/docs/kubernetes-operator/).
-It is intended to replace the Docker + k0s + Pulumi platform bootstrap used by
-the DI Framework wasmCloud prototype.
+It uses the same shared TypeScript/Pulumi platform package as the DI Framework
+wasmCloud CLI extension, with Kubesolo managing the cluster lifecycle.
 
-The binary contains the Helm client, so `helm` is not required. It downloads
+Node.js, npm, and Pulumi are required for provisioning. The binary retains a Helm
+client for status and legacy cleanup, so `helm` is not required. It downloads
 the pinned official `kubesoloctl` executable on first use, verifies its SHA-256
 digest, and caches it. Kubesolo and wasmCloud container images are still pulled
 from their upstream registries.
@@ -168,3 +169,91 @@ images currently come from upstream registries.
 ## License
 
 Licensed under either the MIT License or Apache License 2.0, at your option.
+
+## Shared Pulumi platform
+
+`up` now provisions the same `@di-framework/platform` TypeScript package used by
+`di-framework wasmcloud platform init`. Kubesolo creation remains in this CLI;
+wasmCloud, Tenant/User CRDs, the tenancy controller, admission policies, and HTTP
+routing are defined only in the shared package. `allowSharedHosts` stays false,
+including when an administrator supplies Helm overrides.
+
+Install Node.js, npm, and the Pulumi CLI before running `up`. The CLI installs
+`@di-framework/platform@5.3.3` directly from npm by default:
+
+```sh
+di-framework-kube up
+```
+
+To explicitly select a published package version:
+
+```sh
+di-framework-kube up --platform-package @di-framework/platform@5.3.3
+```
+
+No local package build or tarball is needed for this workflow. Use an exact
+published version with `--platform-package` when upgrading the shared platform.
+
+Use `--platform-config /absolute/path/platform.json` for tenant declarations:
+
+```json
+{
+  "tenants": [{ "name": "alpha" }],
+  "users": [{ "name": "alice", "memberships": [{ "tenant": "alpha", "role": "developer" }] }]
+}
+```
+
+Updates without this flag preserve existing tenant/user declarations. Supplying
+it replaces those declarations. The file also accepts `tenantHostImage` and
+`tenantHostImagePullPolicy`, `storageRoot`, and `networkPolicyEngine` (`existing` or `kube-router`).
+Managed Kubesolo defaults to the shared package's policy-only kube-router
+controller; external clusters default to their existing policy engine. `--values` still accepts administrator Helm values;
+shared-host and watched-namespace security settings cannot be overridden.
+
+Each instance stores its Pulumi project under `<state-dir>/<name>/platform`, with
+stack `dev`, a local file backend, and a mode-0600 `.passphrase` file. Back up this
+whole directory. Do not create another stack for the same cluster. A cluster-level
+ownership claim rejects competing installations and is released only after a
+successful `down`. `down --purge-cluster` destroys the platform before deleting
+Kubesolo and its data. Failed updates keep their project and connection state so
+`up` can retry and `down` can clean up.
+
+To inspect or operate the same project directly, change into that directory and
+set `PULUMI_CONFIG_PASSPHRASE` from `.passphrase` without printing it, then use
+`pulumi preview --stack dev` or `pulumi up --stack dev`. The project records its
+backend URL. Do not run direct Pulumi commands and this CLI concurrently. Use the existing
+cluster deployment target in the framework CLI, with this instance's kubeconfig
+and your application registry. Cluster creation/deletion remains owned by this CLI.
+
+### Existing installations
+
+An existing Helm-only installation is not silently imported or replaced. `up`
+refuses it and leaves it intact. Existing state still supports Helm `status` and
+`down`. Back up workload/backend data and arrange application downtime before
+explicitly removing the legacy release with `down`; a subsequent `up` creates
+the shared platform. Automated resource/data import is not provided. Retained
+tenant data is not a backup, and purging the cluster removes it.
+
+The shared tenant storage profile currently uses single-node host paths under
+`/var/lib/kubesolo`; it is intended for local Kubesolo clusters. External clusters
+must provide suitable storage/network-policy enforcement before using tenancy.
+The policy-only kube-router profile preserves Kubesolo's CNI and service proxy;
+it requires node privileges and uses the pinned v2.10.0 image. See the upstream
+[selective functionality documentation](https://www.kube-router.io/docs/user-guide/).
+
+### Developing the shared package locally
+
+Use a tarball only when testing unpublished changes to `@di-framework/platform`:
+
+```sh
+# In di-framework/packages/di-framework-platform:
+bun run build
+npm pack --pack-destination /tmp
+
+# In di-framework-kube:
+go run ./cmd/di-framework-kube up --name shared-test \
+  --http-port 28089 \
+  --platform-package file:/tmp/di-framework-platform-5.3.3.tgz
+```
+
+Use the filename produced by `npm pack` if the package version differs.
