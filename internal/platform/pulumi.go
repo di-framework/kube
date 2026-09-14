@@ -241,13 +241,25 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 	return identity, nil
 }
 
+// CheckPrerequisites validates provisioning tools before callers create infrastructure.
+func CheckPrerequisites() error {
+	return checkExecutables("pulumi", "npm", "node")
+}
+
+func checkExecutables(names ...string) error {
+	for _, name := range names {
+		if _, err := exec.LookPath(name); err != nil {
+			return fmt.Errorf("shared platform requires %s on PATH: %w", name, err)
+		}
+	}
+	return nil
+}
+
 func (p Pulumi) Up(ctx context.Context, options InstallOptions) error {
 	// Fail before claiming a cluster if the required executables are absent.
 	if p.run == nil {
-		for _, name := range []string{"pulumi", "npm", "node"} {
-			if _, err := exec.LookPath(name); err != nil {
-				return fmt.Errorf("shared platform requires %s on PATH: %w", name, err)
-			}
+		if err := CheckPrerequisites(); err != nil {
+			return err
 		}
 	}
 	identity, err := p.prepare(options)
@@ -278,6 +290,13 @@ func (p Pulumi) Up(ctx context.Context, options InstallOptions) error {
 }
 
 func (p Pulumi) Destroy(ctx context.Context, timeout time.Duration) error {
+	// Destroy evaluates the Node.js program but does not install npm packages.
+	// Check before reading state or making any ownership changes.
+	if p.run == nil {
+		if err := checkExecutables("pulumi", "node"); err != nil {
+			return err
+		}
+	}
 	data, err := os.ReadFile(filepath.Join(p.Directory, "identity.json"))
 	if err != nil {
 		return err

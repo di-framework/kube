@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -124,5 +125,51 @@ func TestFailedDestroyKeepsClaim(t *testing.T) {
 	}
 	if err := p.Destroy(context.Background(), time.Minute); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestDestroyChecksToolsBeforeOwnershipChanges(t *testing.T) {
+	for _, missing := range []string{"pulumi", "node"} {
+		t.Run(missing, func(t *testing.T) {
+			bin := t.TempDir()
+			for _, name := range []string{"pulumi", "node"} {
+				if name != missing {
+					if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\nexit 97\n"), 0700); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			t.Setenv("PATH", bin)
+			p := Pulumi{Directory: t.TempDir(), ownership: func(context.Context, projectIdentity, bool) error {
+				t.Fatal("changed ownership before checking prerequisites")
+				return nil
+			}}
+			err := p.Destroy(context.Background(), time.Minute)
+			if err == nil || !strings.Contains(err.Error(), "shared platform requires "+missing+" on PATH") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !errors.Is(err, exec.ErrNotFound) {
+				t.Fatalf("missing underlying lookup error: %v", err)
+			}
+		})
+	}
+}
+
+func TestDestroyDoesNotRequireNpm(t *testing.T) {
+	bin := t.TempDir()
+	for _, name := range []string{"pulumi", "node"} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\nexit 97\n"), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "identity.json"), []byte(`{"owner":"test-owner"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	reachedOwnership := errors.New("reached ownership validation")
+	p := Pulumi{Directory: dir, ownership: func(context.Context, projectIdentity, bool) error { return reachedOwnership }}
+	if err := p.Destroy(context.Background(), time.Minute); !errors.Is(err, reachedOwnership) {
+		t.Fatalf("cleanup was blocked before ownership validation: %v", err)
 	}
 }

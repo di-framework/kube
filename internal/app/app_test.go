@@ -2,6 +2,10 @@ package app
 
 import (
 	"bytes"
+	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -66,5 +70,42 @@ func TestVersionJSON(t *testing.T) {
 		if !strings.Contains(stdout.String(), want) {
 			t.Fatalf("output %q does not contain %q", stdout.String(), want)
 		}
+	}
+}
+
+func TestUpChecksToolsBeforeCreatingCluster(t *testing.T) {
+	for _, missing := range []string{"pulumi", "npm", "node"} {
+		t.Run(missing, func(t *testing.T) {
+			bin := t.TempDir()
+			for _, name := range []string{"pulumi", "npm", "node"} {
+				if name != missing {
+					if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\nexit 97\n"), 0700); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			t.Setenv("PATH", bin)
+			dir := t.TempDir()
+			var stdout, stderr bytes.Buffer
+			root := newRoot(rootOptions{stateDir: dir, stdout: &stdout, stderr: &stderr})
+			root.SetArgs([]string{"up"})
+			err := root.Execute()
+			if err == nil || !strings.Contains(err.Error(), "shared platform requires "+missing+" on PATH") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !errors.Is(err, exec.ErrNotFound) {
+				t.Fatalf("missing underlying lookup error: %v", err)
+			}
+			if strings.Contains(stdout.String(), "Ensuring Kubesolo") {
+				t.Fatal("started provisioning before checking tools")
+			}
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(entries) != 0 {
+				t.Fatal("created instance files before checking tools")
+			}
+		})
 	}
 }

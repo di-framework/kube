@@ -125,6 +125,10 @@ func runUp(ctx context.Context, stdout, stderr io.Writer, store state.Store, opt
 		return err
 	}
 
+	if err := platform.CheckPrerequisites(); err != nil {
+		return err
+	}
+
 	managed := options.kubeconfig == ""
 	kubeconfig := options.kubeconfig
 	created := false
