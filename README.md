@@ -178,21 +178,21 @@ wasmCloud, Tenant/User CRDs, the tenancy controller, admission policies, and HTT
 routing are defined only in the shared package. `allowSharedHosts` stays false,
 including when an administrator supplies Helm overrides.
 
-Install Node.js, npm, and the Pulumi CLI before running `up`. The default package
-is pinned to `@di-framework/platform@5.3.3`; that new package must be published
-before using the default. During development, build/pack it in the di-framework
-worktree and pass the resulting absolute tarball path:
+Install Node.js, npm, and the Pulumi CLI before running `up`. The CLI installs
+`@di-framework/platform@5.3.3` directly from npm by default:
 
 ```sh
-# In di-framework/packages/di-framework-platform:
-bun run build
-npm pack --pack-destination /tmp
-
-# In di-framework-kube:
-go run ./cmd/di-framework-kube up --name shared-test \
-  --http-port 28089 \
-  --platform-package file:/tmp/di-framework-platform-5.3.3.tgz
+di-framework-kube up
 ```
+
+To explicitly select a published package version:
+
+```sh
+di-framework-kube up --platform-package @di-framework/platform@5.3.3
+```
+
+No local package build or tarball is needed for this workflow. Use an exact
+published version with `--platform-package` when upgrading the shared platform.
 
 Use `--platform-config /absolute/path/platform.json` for tenant declarations:
 
@@ -240,3 +240,20 @@ must provide suitable storage/network-policy enforcement before using tenancy.
 The policy-only kube-router profile preserves Kubesolo's CNI and service proxy;
 it requires node privileges and uses the pinned v2.10.0 image. See the upstream
 [selective functionality documentation](https://www.kube-router.io/docs/user-guide/).
+
+### Developing the shared package locally
+
+Use a tarball only when testing unpublished changes to `@di-framework/platform`:
+
+```sh
+# In di-framework/packages/di-framework-platform:
+bun run build
+npm pack --pack-destination /tmp
+
+# In di-framework-kube:
+go run ./cmd/di-framework-kube up --name shared-test \
+  --http-port 28089 \
+  --platform-package file:/tmp/di-framework-platform-5.3.3.tgz
+```
+
+Use the filename produced by `npm pack` if the package version differs.
