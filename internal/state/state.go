@@ -17,19 +17,20 @@ var validName = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,51}[a-z0-9])?$`)
 // It intentionally contains no credentials; those stay in the mode-0600
 // kubeconfig referenced by Kubeconfig.
 type State struct {
-	Name             string    `json:"name"`
-	ManagedCluster   bool      `json:"managedCluster"`
-	RunMode          string    `json:"runMode,omitempty"`
-	KubesoloVersion  string    `json:"kubesoloVersion,omitempty"`
-	Kubeconfig       string    `json:"kubeconfig"`
-	Context          string    `json:"context,omitempty"`
-	Namespace        string    `json:"namespace"`
-	Release          string    `json:"release"`
-	ChartVersion     string    `json:"chartVersion"`
-	HTTPPort         int       `json:"httpPort,omitempty"`
-	NodePort         int       `json:"nodePort,omitempty"`
-	KubernetesServer string    `json:"kubernetesServer,omitempty"`
-	UpdatedAt        time.Time `json:"updatedAt"`
+	PlatformDirectory string    `json:"platformDirectory,omitempty"`
+	Name              string    `json:"name"`
+	ManagedCluster    bool      `json:"managedCluster"`
+	RunMode           string    `json:"runMode,omitempty"`
+	KubesoloVersion   string    `json:"kubesoloVersion,omitempty"`
+	Kubeconfig        string    `json:"kubeconfig"`
+	Context           string    `json:"context,omitempty"`
+	Namespace         string    `json:"namespace"`
+	Release           string    `json:"release"`
+	ChartVersion      string    `json:"chartVersion"`
+	HTTPPort          int       `json:"httpPort,omitempty"`
+	NodePort          int       `json:"nodePort,omitempty"`
+	KubernetesServer  string    `json:"kubernetesServer,omitempty"`
+	UpdatedAt         time.Time `json:"updatedAt"`
 }
 
 type Store struct {

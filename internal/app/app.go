@@ -27,6 +27,8 @@ type BuildInfo struct {
 }
 
 type upOptions struct {
+	platformPackage         string
+	platformConfig          string
 	name                    string
 	runMode                 string
 	kubesoloVersion         string
@@ -96,6 +98,8 @@ func newUpCommand(root *rootOptions) *cobra.Command {
 		},
 	}
 	flags := command.Flags()
+	flags.StringVar(&options.platformPackage, "platform-package", platform.DefaultPlatformPackage, "pinned shared platform npm package or file: tarball")
+	flags.StringVar(&options.platformConfig, "platform-config", "", "JSON file containing tenants, users, and tenant runtime image settings")
 	flags.StringVar(&options.name, "name", "local", "instance name")
 	flags.StringVar(&options.runMode, "run-mode", "container", "Kubesolo run mode: container or service")
 	flags.StringVar(&options.kubesoloVersion, "kubesolo-version", kubesolo.DefaultVersion, "Kubesolo version")
@@ -107,12 +111,12 @@ func newUpCommand(root *rootOptions) *cobra.Command {
 	flags.StringVar(&options.release, "release", "wasmcloud", "Helm release name")
 	flags.StringVar(&options.chart, "chart", platform.DefaultChart, "wasmCloud Helm chart")
 	flags.StringVar(&options.chartVersion, "chart-version", platform.DefaultChartVersion, "wasmCloud chart version")
-	flags.DurationVar(&options.timeout, "timeout", 10*time.Minute, "cluster and Helm readiness timeout")
+	flags.DurationVar(&options.timeout, "timeout", 10*time.Minute, "cluster and platform readiness timeout")
 	flags.IntVar(&options.httpPort, "http-port", 28080, "localhost port for wasmCloud HTTP in container mode (0 disables publishing)")
 	flags.IntVar(&options.nodePort, "node-port", 30080, "Kubernetes NodePort for the wasmCloud host (0 uses ClusterIP)")
 	flags.BoolVar(&options.allowInsecureRegistries, "allow-insecure-registries", false, "allow hosts to pull components from plain-HTTP OCI registries")
 	flags.StringSliceVarP(&options.valueFiles, "values", "f", nil, "additional Helm values file (repeatable)")
-	flags.BoolVar(&options.debug, "debug", false, "show Helm debug logs")
+	flags.BoolVar(&options.debug, "debug", false, "show Pulumi debug logs")
 	return command
 }
 
@@ -171,45 +175,54 @@ func runUp(ctx context.Context, stdout, stderr io.Writer, store state.Store, opt
 		return err
 	}
 
-	client := platform.Client{
-		Kubeconfig: kubeconfig,
-		Context:    options.kubeContext,
-		Namespace:  options.namespace,
-		Debug:      options.debug,
-		Stderr:     stderr,
-	}
-	fmt.Fprintf(stdout, "Installing wasmCloud %s...\n", options.chartVersion)
-	releaseStatus, err := client.InstallOrUpgrade(platform.InstallOptions{
-		Release:                 options.release,
-		Chart:                   options.chart,
-		ChartVersion:            options.chartVersion,
-		Timeout:                 options.timeout,
-		NodePort:                options.nodePort,
-		AllowInsecureRegistries: options.allowInsecureRegistries,
-		ValueFiles:              options.valueFiles,
-	})
+	instanceDir, err := store.InstanceDir(options.name)
 	if err != nil {
 		return err
 	}
-
-	value := state.State{
-		Name:             options.name,
-		ManagedCluster:   managed,
-		RunMode:          storedRunMode,
-		KubesoloVersion:  options.kubesoloVersion,
-		Kubeconfig:       kubeconfig,
-		Context:          options.kubeContext,
-		Namespace:        options.namespace,
-		Release:          options.release,
-		ChartVersion:     options.chartVersion,
-		HTTPPort:         storedHTTPPort,
-		NodePort:         options.nodePort,
-		KubernetesServer: server,
-	}
-	if err := store.Save(value); err != nil {
+	platformDir, err := filepath.Abs(filepath.Join(instanceDir, "platform"))
+	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "wasmCloud is %s in namespace %s (revision %d).\n", releaseStatus.Status, releaseStatus.Namespace, releaseStatus.Revision)
+	client := platform.Pulumi{
+		Debug: options.debug, Directory: platformDir, Package: options.platformPackage, ConfigFile: options.platformConfig,
+		Kubeconfig: kubeconfig, Context: options.kubeContext, Namespace: options.namespace,
+		HTTPPort: storedHTTPPort, Server: server, Stdout: stdout, Stderr: stderr,
+	}
+	if managed {
+		client.NetworkPolicyEngine = "kube-router"
+		client.StorageRoot = "/var/lib/kubesolo"
+		if options.runMode == "service" {
+			client.StorageRoot = options.dataPath
+		}
+	}
+	fmt.Fprintln(stdout, "Provisioning the shared Pulumi platform...")
+	// Persist the connection before provisioning so failed updates can be retried or destroyed.
+
+	value := state.State{
+		PlatformDirectory: platformDir,
+		Name:              options.name,
+		ManagedCluster:    managed,
+		RunMode:           storedRunMode,
+		KubesoloVersion:   options.kubesoloVersion,
+		Kubeconfig:        kubeconfig,
+		Context:           options.kubeContext,
+		Namespace:         options.namespace,
+		Release:           options.release,
+		ChartVersion:      options.chartVersion,
+		HTTPPort:          storedHTTPPort,
+		NodePort:          options.nodePort,
+		KubernetesServer:  server,
+	}
+	client.OnClaim = func() error { return store.Save(value) }
+	if err := client.Up(ctx, platform.InstallOptions{
+		Release: options.release, Chart: options.chart, ChartVersion: options.chartVersion,
+		Timeout: options.timeout, NodePort: options.nodePort,
+		AllowInsecureRegistries: options.allowInsecureRegistries, ValueFiles: options.valueFiles,
+	}); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "wasmCloud platform is ready in namespace %s. Pulumi project: %s\n", options.namespace, platformDir)
+
 	if managed && created {
 		fmt.Fprintln(stdout, "A new Kubesolo cluster was created.")
 	}
@@ -266,7 +279,12 @@ func newDownCommand(root *rootOptions) *cobra.Command {
 			}
 			client := platform.Client{Kubeconfig: value.Kubeconfig, Context: value.Context, Namespace: value.Namespace, Stderr: command.ErrOrStderr()}
 			fmt.Fprintf(command.OutOrStdout(), "Uninstalling wasmCloud release %s...\n", value.Release)
-			if err := client.Uninstall(value.Release, timeout); err != nil {
+			if value.PlatformDirectory != "" {
+				p := platform.Pulumi{Directory: value.PlatformDirectory, Stdout: command.OutOrStdout(), Stderr: command.ErrOrStderr()}
+				if err := p.Destroy(command.Context(), timeout); err != nil {
+					return err
+				}
+			} else if err := client.Uninstall(value.Release, timeout); err != nil {
 				return err
 			}
 			if !purgeCluster {
