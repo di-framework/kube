@@ -25,23 +25,42 @@ const httpPort = Number(process.env.DI_HTTP_PORT ?? "28080");
 if (!Number.isInteger(httpPort) || httpPort < 1024 || httpPort > 65535) throw new Error("DI_HTTP_PORT must be 1024–65535");
 if (httpPort === port) throw new Error("DI_HTTP_PORT and DI_REGISTRY_PORT must be different");
 
-// Keep the TLS-capable host for every app deployment, so Helm cannot revert it.
-const { prepareTlsRuntime } = await import("./tls-runtime");
-await prepareTlsRuntime();
-// PVC must exist before Helm creates hostgroup-storage (volumeMount references it).
-{
-  const prior = await outputs().catch(() => undefined);
-  if (prior) {
-    await run(kubectl(prior, "apply", "-f", resolve(workspace, "infra/storage-host.yaml")));
-  }
+const needsTlsHost =
+  selected.includes("node-tls") ||
+  process.env.DI_TLS_RUNTIME === "always" ||
+  process.env.DI_TLS_RUNTIME === "1";
+if (needsTlsHost) {
+  const { prepareTlsRuntime } = await import("./tls-runtime");
+  await prepareTlsRuntime();
+}
+const storageBackedApps = new Set(["actor-counter", "durable-receipts", "schema-migrations"]);
+const needsStorageHost = selected.some((name) => {
+  const config = projectConfigs.get(name);
+  return config?.persistentStorage === true || storageBackedApps.has(name);
+});
+const helmValueFiles = (includeStorageHost: boolean) => {
+  const files = [resolve(workspace, "infra/postgres-host.yaml")];
+  if (needsTlsHost) files.push(resolve(workspace, "infra/tls-runtime/values.yaml"));
+  if (includeStorageHost) files.push(resolve(workspace, "infra/storage-host-values.yaml"));
+  return files;
+};
+const upArgs = (files: string[]) =>
+  [binary, "up", "--name", instance, "--http-port", String(httpPort), "--allow-insecure-registries", ...files.flatMap((file) => ["--values", file])];
+// PVC must exist before Helm references it in the storage hostgroup.
+if (needsStorageHost) {
+  await run(upArgs(helmValueFiles(false)));
+  const warm = await outputs();
+  await run(kubectl(warm, "apply", "-f", resolve(workspace, "infra/storage-host.yaml")));
 }
 // Explicitly scoped to the selected di-framework-kube instance, never kubectl's current context.
-await run([binary, "up", "--name", instance, "--http-port", String(httpPort), "--allow-insecure-registries", "--values", resolve(workspace, "infra/postgres-host.yaml"), "--values", resolve(workspace, "infra/tls-runtime/values.yaml"), "--values", resolve(workspace, "infra/storage-host-values.yaml")]);
+await run(upArgs(helmValueFiles(needsStorageHost)));
 const platform = await outputs();
 await run(kubectl(platform, "apply", "-f", resolve(workspace, "infra/registry.yaml")));
 await run(kubectl(platform, "rollout", "status", "deployment/examples-registry", "--timeout=180s"));
-const { provisionStorageHost } = await import("./storage");
-await provisionStorageHost(platform);
+if (needsStorageHost) {
+  const { provisionStorageHost } = await import("./storage");
+  await provisionStorageHost(platform);
+}
 
 if (selected.includes("node-network") || selected.includes("node-http")) {
   await run(kubectl(platform, "apply", "-f", resolve(workspace, "infra/node-compat-echo.yaml")));
@@ -99,7 +118,7 @@ try {
   const outcomes: Array<{ app: string; passed: boolean; error?: string }> = [];
   for (const name of selected) {
     try {
-      await run([resolve(workspace, "node_modules/.bin/di-framework"), "wasmcloud", "deploy", name, "--yes"], { env });
+      await run([resolve(workspace, "node_modules/.bin/di-framework"), "platform", "deploy", name, "--yes"], { env });
       // The extension generates port 80; the Kubesolo profile listens on 9191.
       await run(kubectl(platform, "patch", "service", name, "--type=merge", "-p",
         JSON.stringify({ spec: { ports: [{ name: "http", port: 80, targetPort: 9191, protocol: "TCP" }] } })));
