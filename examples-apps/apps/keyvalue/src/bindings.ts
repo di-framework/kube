@@ -1,5 +1,5 @@
 import { Container } from "@di-framework/core/decorators";
-import { KeyValue, WasmCloudBinding } from "@di-framework/wasmcloud";
+import { KeyValue, WasmCloudBinding } from "@di-framework/bindings";
 
 @WasmCloudBinding("cache", { configFrom: "binding-keyvalue" })
 @Container()

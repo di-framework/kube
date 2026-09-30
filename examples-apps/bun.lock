@@ -1,21 +1,22 @@
 {
-  "lockfileVersion": 1,
+  "lockfileVersion": 2,
   "configVersion": 1,
   "workspaces": {
     "": {
       "name": "di-framework-kube-examples",
       "dependencies": {
         "@di-framework/actors": "link:@di-framework/actors",
+        "@di-framework/bindings": "link:@di-framework/bindings",
         "@di-framework/core": "link:@di-framework/core",
         "@di-framework/http": "link:@di-framework/http",
         "@di-framework/queues": "link:@di-framework/queues",
         "@di-framework/repo": "link:@di-framework/repo",
-        "@di-framework/wasmcloud": "link:@di-framework/wasmcloud",
       },
       "devDependencies": {
         "@di-framework/cli": "link:@di-framework/cli",
         "@di-framework/cli-extension": "link:@di-framework/cli-extension",
-        "@di-framework/cli-plugin-wasmcloud": "link:@di-framework/cli-plugin-wasmcloud",
+        "@di-framework/cli-plugin-platform": "link:@di-framework/cli-plugin-platform",
+        "@di-framework/platform": "link:@di-framework/platform",
         "@types/bun": "1.3.14",
         "rolldown": "1.2.7",
         "typescript": "5.9.3",
@@ -25,191 +26,192 @@
       "name": "@di-framework-kube-examples/actor-counter",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/actors": "^5",
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
+        "@di-framework/actors": "^6",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/blobstore": {
       "name": "@di-framework-kube-examples/blobstore",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
-        "@di-framework/wasmcloud": "5.3.0",
+        "@di-framework/bindings": "6.0.1",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/catalog": {
       "name": "@di-framework-kube-examples/catalog",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/config": {
       "name": "@di-framework-kube-examples/config",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
-        "@di-framework/wasmcloud": "5.3.0",
+        "@di-framework/bindings": "6.0.1",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/durable-receipts": {
       "name": "@di-framework-kube-examples/durable-receipts",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
-        "@di-framework/queues": "^5",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
+        "@di-framework/queues": "^6",
       },
     },
     "apps/greeter": {
       "name": "@di-framework-kube-examples/greeter",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/keyvalue": {
       "name": "@di-framework-kube-examples/keyvalue",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
-        "@di-framework/wasmcloud": "5.3.0",
+        "@di-framework/bindings": "6.0.1",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/messaging": {
       "name": "@di-framework-kube-examples/messaging",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
-        "@di-framework/wasmcloud": "5.3.0",
+        "@di-framework/bindings": "6.0.1",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/node-crypto": {
       "name": "@di-framework-kube-examples/node-crypto",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/node-http": {
       "name": "@di-framework-kube-examples/node-http",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/node-network": {
       "name": "@di-framework-kube-examples/node-network",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/node-runtime": {
       "name": "@di-framework-kube-examples/node-runtime",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/node-tls": {
       "name": "@di-framework-kube-examples/node-tls",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/outgoing-http": {
       "name": "@di-framework-kube-examples/outgoing-http",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
-        "@di-framework/wasmcloud": "5.3.0",
+        "@di-framework/bindings": "6.0.1",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/postgres": {
       "name": "@di-framework-kube-examples/postgres",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
-        "@di-framework/wasmcloud": "5.3.0",
+        "@di-framework/bindings": "6.0.1",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/private-checkout": {
       "name": "@di-framework-kube-examples/private-checkout",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/quotes": {
       "name": "@di-framework-kube-examples/quotes",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/scheduled-maintenance": {
       "name": "@di-framework-kube-examples/scheduled-maintenance",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/schema-migrations": {
       "name": "@di-framework-kube-examples/schema-migrations",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
-        "@di-framework/repo": "5.3.0",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
+        "@di-framework/repo": "6.0.1",
       },
     },
     "apps/secrets": {
       "name": "@di-framework-kube-examples/secrets",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
-        "@di-framework/wasmcloud": "5.3.0",
+        "@di-framework/bindings": "6.0.1",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
     "apps/static-site": {
       "name": "@di-framework-kube-examples/static-site",
       "version": "0.1.0",
       "dependencies": {
-        "@di-framework/core": "5.3.0",
-        "@di-framework/http": "5.3.0",
+        "@di-framework/core": "6.0.1",
+        "@di-framework/http": "6.0.1",
       },
     },
   },
   "overrides": {
     "@di-framework/actors": "link:@di-framework/actors",
+    "@di-framework/bindings": "link:@di-framework/bindings",
     "@di-framework/cli": "link:@di-framework/cli",
     "@di-framework/cli-extension": "link:@di-framework/cli-extension",
-    "@di-framework/cli-plugin-wasmcloud": "link:@di-framework/cli-plugin-wasmcloud",
+    "@di-framework/cli-plugin-platform": "link:@di-framework/cli-plugin-platform",
     "@di-framework/core": "link:@di-framework/core",
     "@di-framework/http": "link:@di-framework/http",
+    "@di-framework/platform": "link:@di-framework/platform",
     "@di-framework/queues": "link:@di-framework/queues",
     "@di-framework/repo": "link:@di-framework/repo",
-    "@di-framework/wasmcloud": "link:@di-framework/wasmcloud",
   },
   "packages": {
     "@di-framework-kube-examples/actor-counter": ["@di-framework-kube-examples/actor-counter@workspace:apps/actor-counter"],
@@ -256,21 +258,23 @@
 
     "@di-framework/actors": ["@di-framework/actors@link:@di-framework/actors", {}],
 
+    "@di-framework/bindings": ["@di-framework/bindings@link:@di-framework/bindings", {}],
+
     "@di-framework/cli": ["@di-framework/cli@link:@di-framework/cli", { "bin": { "di-framework": "./main.ts" } }],
 
     "@di-framework/cli-extension": ["@di-framework/cli-extension@link:@di-framework/cli-extension", {}],
 
-    "@di-framework/cli-plugin-wasmcloud": ["@di-framework/cli-plugin-wasmcloud@link:@di-framework/cli-plugin-wasmcloud", {}],
+    "@di-framework/cli-plugin-platform": ["@di-framework/cli-plugin-platform@link:@di-framework/cli-plugin-platform", {}],
 
     "@di-framework/core": ["@di-framework/core@link:@di-framework/core", {}],
 
     "@di-framework/http": ["@di-framework/http@link:@di-framework/http", {}],
 
+    "@di-framework/platform": ["@di-framework/platform@link:@di-framework/platform", {}],
+
     "@di-framework/queues": ["@di-framework/queues@link:@di-framework/queues", {}],
 
     "@di-framework/repo": ["@di-framework/repo@link:@di-framework/repo", {}],
-
-    "@di-framework/wasmcloud": ["@di-framework/wasmcloud@link:@di-framework/wasmcloud", {}],
 
     "@oxc-project/types": ["@oxc-project/types@0.148.0", "", {}, "sha512-Nm4s/jB+4FpFsPhWGEC4h7rzksesmtnMXomo6rCMcg/b8zLQuOziRgkCS1fxDCXOlJB/6Q8oABOZ/OP6RIPj9A=="],
 
@@ -308,7 +312,7 @@
 
     "@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
 
-    "@types/node": ["@types/node@26.5.0", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-dVSGpriSoCgz8WnDNTuSSuSv1PC/ALXihO4ulRZt7Md8k9mlbdin3lGOcDE8SnWOgf513ByWlXd7BK4azmyg/A=="],
+    "@types/node": ["@types/node@26.6.3", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-dsqMQQoeTLqu9wynDD00q573mNzso3IdQOAfHRJqLCcmCFPoGo9A1bDpUcv/9tnKpErQWv9uKeGfl37EIS02Yg=="],
 
     "bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
 

@@ -79,7 +79,7 @@ local Bun and the real Kubernetes API.
 
 
 The [examples-apps workspace](examples-apps/README.md) contains a greeter, product
-catalog, quote API, seven service-binding examples, and five Node compatibility probes for DI Framework 5.3.0 with the local TLS changes from PR #413.
+catalog, quote API, seven service-binding examples, and five Node compatibility probes for DI Framework 6.
 Install dependencies and deploy all examples to this platform:
 
 ```sh
@@ -92,8 +92,9 @@ bun run smoke
 The workspace includes a local component registry, deployment configuration, and
 API checks that run both locally and against the deployed Wasm components.
 
-The examples link core, HTTP, the CLI, CLI extension, and wasmCloud plugin to
-the sibling `../di-framework` checkout. Build that checkout first. Deployment
+The examples link core, HTTP, the CLI, CLI extension, platform bindings, and the
+platform plugin to the sibling `di-framework`, `cli-extensions`, and `platform`
+checkouts. Build those checkouts first. Deployment
 builds and imports a pinned wasmCloud 2.8.0 host with its opt-in `wasi-tls`
 feature; see the example README for requirements and verification results.
 The probes exercise runtime APIs, crypto reference vectors, and HTTP/TCP/UDP over

@@ -1,5 +1,5 @@
 import { Container } from "@di-framework/core/decorators";
-import { OutgoingHttp, WasmCloudBinding } from "@di-framework/wasmcloud";
+import { OutgoingHttp, WasmCloudBinding } from "@di-framework/bindings";
 
 @WasmCloudBinding("http-client")
 @Container()

@@ -24,12 +24,13 @@
     "@di-framework/actors": "link:@di-framework/actors",
     "@di-framework/queues": "link:@di-framework/queues",
     "@di-framework/repo": "link:@di-framework/repo",
-    "@di-framework/wasmcloud": "link:@di-framework/wasmcloud"
+    "@di-framework/bindings": "link:@di-framework/bindings"
   },
   "devDependencies": {
     "@di-framework/cli": "link:@di-framework/cli",
     "@di-framework/cli-extension": "link:@di-framework/cli-extension",
-    "@di-framework/cli-plugin-wasmcloud": "link:@di-framework/cli-plugin-wasmcloud",
+    "@di-framework/cli-plugin-platform": "link:@di-framework/cli-plugin-platform",
+    "@di-framework/platform": "link:@di-framework/platform",
     "@types/bun": "1.3.14",
     "rolldown": "1.2.7",
     "typescript": "5.9.3"
@@ -39,10 +40,11 @@
     "@di-framework/http": "link:@di-framework/http",
     "@di-framework/cli": "link:@di-framework/cli",
     "@di-framework/cli-extension": "link:@di-framework/cli-extension",
-    "@di-framework/cli-plugin-wasmcloud": "link:@di-framework/cli-plugin-wasmcloud",
+    "@di-framework/cli-plugin-platform": "link:@di-framework/cli-plugin-platform",
+    "@di-framework/platform": "link:@di-framework/platform",
     "@di-framework/actors": "link:@di-framework/actors",
     "@di-framework/queues": "link:@di-framework/queues",
     "@di-framework/repo": "link:@di-framework/repo",
-    "@di-framework/wasmcloud": "link:@di-framework/wasmcloud"
+    "@di-framework/bindings": "link:@di-framework/bindings"
   }
 }

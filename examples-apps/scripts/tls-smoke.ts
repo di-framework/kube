@@ -1,8 +1,8 @@
 import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
-import { DEFAULT_DEPS } from "../node_modules/@di-framework/cli-plugin-wasmcloud/dist/deps";
-import { renderWorldWit, runtimeRequirementsFromJavaScript } from "../node_modules/@di-framework/cli-plugin-wasmcloud/dist/wit";
+import { DEFAULT_DEPS } from "../node_modules/@di-framework/cli-plugin-platform/dist/deps";
+import { renderWorldWit, runtimeRequirementsFromJavaScript } from "../node_modules/@di-framework/cli-plugin-platform/dist/wit";
 import { cases, verify } from "../tests/api-cases";
 
 const workspace = resolve(import.meta.dir, "..");
@@ -15,7 +15,7 @@ async function command(args: string[], cwd = workspace) {
   if (code !== 0) throw new Error(`${args[0]} failed (${code}): ${stderr}\n${stdout}`);
   return stdout;
 }
-console.log(await command([resolve(workspace, "node_modules/.bin/di-framework"), "wasmcloud", "build"], app));
+console.log(await command([resolve(workspace, "node_modules/.bin/di-framework"), "platform", "build"], app));
 const lock = await Bun.file(resolve(app, ".di-framework/wit.lock.json")).text();
 if (!lock.includes("wasi:tls")) throw new Error("Build did not discover WASI TLS imports; check local links");
 
