@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -171,5 +172,65 @@ func TestDestroyDoesNotRequireNpm(t *testing.T) {
 	p := Pulumi{Directory: dir, ownership: func(context.Context, projectIdentity, bool) error { return reachedOwnership }}
 	if err := p.Destroy(context.Background(), time.Minute); !errors.Is(err, reachedOwnership) {
 		t.Fatalf("cleanup was blocked before ownership validation: %v", err)
+	}
+}
+
+func TestRebuiltTarballChangesDependency(t *testing.T) {
+	dir := t.TempDir()
+	tarball := filepath.Join(t.TempDir(), "di-framework-platform-6.0.2.tgz")
+	p := Pulumi{Directory: dir, Kubeconfig: "/tmp/kube", Namespace: "wasmcloud", Server: "https://example.test", Package: "file:" + tarball}
+	opts := InstallOptions{Release: "wasmcloud", Chart: DefaultChart, ChartVersion: DefaultChartVersion, Timeout: time.Minute}
+	dependency := func() string {
+		b, err := os.ReadFile(filepath.Join(dir, "package.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var manifest struct {
+			Dependencies map[string]string `json:"dependencies"`
+		}
+		if err := json.Unmarshal(b, &manifest); err != nil {
+			t.Fatal(err)
+		}
+		return manifest.Dependencies["@di-framework/platform"]
+	}
+	os.WriteFile(tarball, []byte("first build"), 0600)
+	if _, err := p.prepare(opts); err != nil {
+		t.Fatal(err)
+	}
+	first := dependency()
+	if !strings.HasPrefix(first, "file:vendor/platform-") {
+		t.Fatal(first)
+	}
+	if _, err := p.prepare(opts); err != nil {
+		t.Fatal(err)
+	}
+	if dependency() != first {
+		t.Fatal("unchanged tarball changed the dependency")
+	}
+	// Same path and version, new content: npm must see a different dependency.
+	os.WriteFile(tarball, []byte("second build"), 0600)
+	if _, err := p.prepare(opts); err != nil {
+		t.Fatal(err)
+	}
+	second := dependency()
+	if second == first {
+		t.Fatal("rebuilt tarball kept the cached dependency")
+	}
+	vendored, _ := filepath.Glob(filepath.Join(dir, "vendor", "platform-*.tgz"))
+	if len(vendored) != 1 || "file:vendor/"+filepath.Base(vendored[0]) != second {
+		t.Fatal(vendored)
+	}
+	if b, _ := os.ReadFile(vendored[0]); string(b) != "second build" {
+		t.Fatal(string(b))
+	}
+	p.Package = "file:" + filepath.Join(t.TempDir(), "missing.tgz")
+	if _, err := p.prepare(opts); err == nil || !strings.Contains(err.Error(), "read platform tarball") {
+		t.Fatal(err)
+	}
+}
+
+func TestDefaultPlatformPackageIsPinned(t *testing.T) {
+	if !regexp.MustCompile(`^@di-framework/platform@6\.0\.[0-9]+$`).MatchString(DefaultPlatformPackage) {
+		t.Fatal(DefaultPlatformPackage)
 	}
 }

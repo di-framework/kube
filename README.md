@@ -3,8 +3,9 @@
 `di-framework-kube` is a single distributable CLI that creates an isolated
 [Kubesolo](https://github.com/portainer/kubesolo) cluster and installs the
 [wasmCloud runtime operator](https://wasmcloud.com/docs/kubernetes-operator/).
-It uses the same shared TypeScript/Pulumi platform package as the DI Framework
-wasmCloud CLI extension, with Kubesolo managing the cluster lifecycle.
+Kubesolo creation and deletion stay in this CLI. Everything installed inside the
+cluster (wasmCloud, tenancy, admission, routing) comes from the published
+`@di-framework/platform` package, which `up` applies through Pulumi.
 
 Node.js, npm, and Pulumi are required for provisioning. The binary retains a Helm
 client for status and legacy cleanup, so `helm` is not required. It downloads
@@ -173,27 +174,37 @@ Licensed under either the MIT License or Apache License 2.0, at your option.
 
 ## Shared Pulumi platform
 
-`up` now provisions the same `@di-framework/platform` TypeScript package used by
-`di-framework wasmcloud platform init`. Kubesolo creation remains in this CLI;
-wasmCloud, Tenant/User CRDs, the tenancy controller, admission policies, and HTTP
-routing are defined only in the shared package. `allowSharedHosts` stays false,
-including when an administrator supplies Helm overrides.
+After the cluster is reachable, `up` writes a small Pulumi project that runs the
+`@di-framework/platform/existing` entrypoint against it. That package installs:
 
-Install Node.js, npm, and the Pulumi CLI before running `up`. The CLI installs
-`@di-framework/platform@5.3.3` directly from npm by default:
+- the wasmCloud runtime operator, with `allowSharedHosts=false` (administrator Helm
+  values cannot turn it back on), plus the default host group and the HTTP entrypoint;
+- the `Tenant` and `User` CRDs and the tenants and users you declare;
+- per tenant: a namespace, a dedicated `hostgroup-<tenant>` wash host in its runtime
+  namespace, quotas, network policy, and a `di-user-<name>` service account per member;
+- the validating admission policies that keep tenant workloads in their own
+  environment and limit them to approved host interfaces, bindings, and volumes;
+- the tenancy controller, which reconciles backing services and bindings, publishes
+  console log projections, and mounts platform-managed workload storage.
+
+A fresh managed instance with one tenant takes about 9 minutes to come up on a
+laptop, most of it image pulls and the first tenant host rollout.
+
+Install Node.js, npm, and the Pulumi CLI before running `up`. By default the CLI
+installs the pinned `@di-framework/platform@6.0.2` from npm:
 
 ```sh
 di-framework-kube up
 ```
 
-To explicitly select a published package version:
+Select another published version with `--platform-package`:
 
 ```sh
-di-framework-kube up --platform-package @di-framework/platform@5.3.3
+di-framework-kube up --platform-package @di-framework/platform@6.0.3
 ```
 
-No local package build or tarball is needed for this workflow. Use an exact
-published version with `--platform-package` when upgrading the shared platform.
+The pin moves with this CLI's releases (`DefaultPlatformPackage` in
+`internal/platform/pulumi.go`). Use an exact version; ranges are rejected.
 
 Use `--platform-config /absolute/path/platform.json` for tenant declarations:
 
@@ -247,14 +258,27 @@ it requires node privileges and uses the pinned v2.10.0 image. See the upstream
 Use a tarball only when testing unpublished changes to `@di-framework/platform`:
 
 ```sh
-# In di-framework/packages/di-framework-platform:
+# In the platform package directory:
 bun run build
 npm pack --pack-destination /tmp
 
 # In di-framework-kube:
 go run ./cmd/di-framework-kube up --name shared-test \
   --http-port 28089 \
-  --platform-package file:/tmp/di-framework-platform-5.3.3.tgz
+  --platform-package file:/tmp/di-framework-platform-6.0.2.tgz
 ```
 
-Use the filename produced by `npm pack` if the package version differs.
+Use the filename produced by `npm pack` if the package version differs. `up` copies
+the tarball into the project as `vendor/platform-<sha256>.tgz` and depends on that
+copy, so rebuilding the tarball at the same path and version and rerunning `up`
+installs the new build. To check which build is installed, compare
+`shasum -a 256 /tmp/di-framework-platform-6.0.2.tgz` with the `vendor/` file name
+under `<state-dir>/<name>/platform`.
+
+### Known limitations
+
+- The tenant's own `di-http` Service in its runtime namespace is the only HTTP
+  route into a tenant's workloads. The shared entrypoint on the published HTTP port
+  (`127.0.0.1:28080` by default) reaches only the default host group, so tenant
+  workloads are not reachable there. Use a port-forward to the tenant's `di-http`
+  Service until this is addressed.
