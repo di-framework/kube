@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import {
   loadProject, discoverActors, discoverScheduledJobs, discoverQueueHandlers,
   requirementsForProject, renderWorkloadManifest,
-} from "@di-framework/cli-plugin-wasmcloud";
+} from "@di-framework/cli-plugin-platform";
 import { outputs, kubectl, run, workspace } from "./platform";
 import { verifyStaticSite } from "../shared/feature-checks";
 
@@ -18,13 +18,21 @@ const reportDirectory = resolve(workspace, ".local/verification-main");
 mkdirSync(reportDirectory, { recursive: true });
 rmSync(resolve(reportDirectory, "report.json"), { force: true });
 const framework = await Bun.file(resolve(workspace, ".local/framework.json")).json();
-const revision = Bun.spawnSync(["git", "-C", framework.directory, "rev-parse", "HEAD"]);
-if (revision.exitCode !== 0 || revision.stdout.toString().trim() !== framework.revision) throw new Error("Framework revision changed; rebuild and rerun link:framework");
+const sources = framework.sources ?? [{ name: "di-framework", directory: framework.directory, revision: framework.revision }];
+for (const source of sources) {
+  const revision = Bun.spawnSync(["git", "-C", source.directory, "rev-parse", "HEAD"]);
+  if (revision.exitCode !== 0 || revision.stdout.toString().trim() !== source.revision) {
+    throw new Error(`${source.name} revision changed; rebuild and rerun link:framework`);
+  }
+}
 const manifest = await Bun.file(resolve(workspace, "package.json")).json();
 for (const name of Object.keys(manifest.overrides)) {
   if (!name.startsWith("@di-framework/")) continue;
-  const expected = realpathSync(resolve(framework.directory, "packages", `di-framework-${name.split("/")[1]}`));
-  if (realpathSync(resolve(workspace, "node_modules", name)) !== expected) throw new Error(`Link changed for ${name}; rerun link:framework`);
+  const recorded = framework.packages?.[name];
+  if (!recorded) throw new Error(`No recorded link for ${name}; rerun link:framework`);
+  if (realpathSync(resolve(workspace, "node_modules", name)) !== realpathSync(recorded)) {
+    throw new Error(`Link changed for ${name}; rerun link:framework`);
+  }
 }
 
 const artifacts: Record<string, { sha256: string; bytes: number; deploymentImage?: string }> = {};
@@ -56,14 +64,14 @@ try {
       .map((item: any) => ({ name: item.metadata.name, images: item.spec.template.spec.containers.map((container: any) => container.image) }));
     assert.ok((runtime as any[]).length >= 2, "Missing host or runtime operator version evidence");
   });
-  await command("greeter-build", [resolve(workspace, "node_modules/.bin/di-framework"), "wasmcloud", "build"], resolve(workspace, "apps/greeter"));
+  await command("greeter-build", [resolve(workspace, "node_modules/.bin/di-framework"), "platform", "build"], resolve(workspace, "apps/greeter"));
   await command("prepare", ["bun", "run", "prepare:features"]);
   await command("typecheck", ["bun", "run", "check"]);
   await command("local-tests", ["bun", "test"]);
   const deployable: string[] = [];
   for (const name of selected) {
     const directory = resolve(workspace, "apps", name);
-    const built = await command(`${name}-build`, [resolve(workspace, "node_modules/.bin/di-framework"), "wasmcloud", "build"], directory);
+    const built = await command(`${name}-build`, [resolve(workspace, "node_modules/.bin/di-framework"), "platform", "build"], directory);
     if (built) await check(`${name}-artifact`, async () => {
       const project = loadProject(directory);
       const bytes = await Bun.file(project.outputPath).bytes();

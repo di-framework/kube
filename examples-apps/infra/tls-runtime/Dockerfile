@@ -6,6 +6,11 @@ USER root
 RUN apk --no-cache add protoc protobuf protobuf-dev
 USER nonroot
 COPY --chown=nonroot:nonroot . .
+# Podman creates WORKDIR as root. Cargo must be able to create /src/target.
+USER root
+RUN chown nonroot:nonroot /src
+USER nonroot
+ENV CARGO_BUILD_JOBS=2
 RUN cargo build --locked --release --bin wash --features wasi-tls
 
 FROM cgr.dev/chainguard/wolfi-base@sha256:918a593b8268c222afd4e2c4f06860ac984e60719b4697e4c71d796bc8fcd042

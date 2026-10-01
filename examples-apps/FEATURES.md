@@ -24,12 +24,15 @@ process; it is separate from the generated wasmCloud adapter.
 
 ## Run
 
-Build an isolated checkout of the framework main revision first. The workspace
-can select it without moving either repository's current branch:
+Build the sibling `di-framework`, `cli-extensions`, and `platform` checkouts first.
+The workspace can select them without moving the current branch:
 
 ```sh
-# From examples-apps; replace with your built main worktree.
-DI_FRAMEWORK_DIR=/absolute/path/to/di-framework-main bun run link:framework
+# From examples-apps; replace with your built worktrees.
+DI_FRAMEWORK_DIR=/absolute/path/to/di-framework \
+DI_CLI_EXTENSIONS_DIR=/absolute/path/to/cli-extensions \
+DI_PLATFORM_DIR=/absolute/path/to/platform \
+  bun run link:framework
 bun run prepare:features
 bun run check
 bun test
@@ -42,10 +45,11 @@ DI_KUBE_BIN=/absolute/path/to/di-framework-kube bun run verify:features
 bun run smoke
 ```
 
-`link:framework` defaults to `../../di-framework`, supports `DI_FRAMEWORK_DIR`,
-and records the selected commit in `.local/framework.json`. The verifier checks
-that the revision and all package links still match. Build that worktree again
-after changing the framework. Bun links are user-wide; another worktree can
+`link:framework` defaults to `../../di-framework`, `../../cli-extensions`, and
+`../../platform`. Override those with `DI_FRAMEWORK_DIR`, `DI_CLI_EXTENSIONS_DIR`,
+and `DI_PLATFORM_DIR`. It records each selected commit in `.local/framework.json`.
+The verifier checks that those revisions and all package links still match.
+Rebuild a worktree again after changing it. Bun links are user-wide; another worktree can
 replace them. Queue handlers import the public `@di-framework/queues` decorator
 so the linked dispatcher and handler use the same registry. Mixing source and
 compiled imports through the framework's own tsconfig aliases can create two registries.
@@ -75,8 +79,8 @@ across restart. The live probe does not establish those lifecycle behaviors.
 
 A full successful feature run also rebuilds and deploys all example apps before
 running the 64-check smoke suite. Missing deployment, live, or smoke evidence
-fails the aggregate result. Docker Desktop and the existing Kubesolo instance
-must be running before invoking the verifier.
+fails the aggregate result. A container engine (Docker or Podman) and the existing
+Kubesolo instance must be running before invoking the verifier.
 
 The static-site app imports `src/assets.json`, generated from its `public/`
 fixtures and ignored by Git. Typechecking, tests, feature verification, and

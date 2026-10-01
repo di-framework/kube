@@ -10,22 +10,25 @@ WASI 0.3 components with its wasmCloud extension. Each default export is a Fetch
 router; the extension supplies the WASI adapter and generates the Kubernetes
 resources.
 
-The workspace links core, HTTP, CLI, CLI extension, and the wasmCloud plugin to
-our sibling `../../di-framework` checkout, including transitive overrides. This
-exercises the unpublished TLS/HTTPS implementation from framework PR #413.
-Build that checkout first, then register its packages and install this workspace:
+The workspace links DI Framework 6 — core, HTTP, CLI, CLI extension, platform
+bindings, and `@di-framework/cli-plugin-platform` — to the sibling `di-framework`,
+`cli-extensions`, and `platform` checkouts, including transitive overrides.
+The `node-tls` app still needs a wasmCloud host built with `wasi-tls`.
+Build those checkouts first, then register their packages and install this workspace:
 
 ```sh
 (cd ../../di-framework && bun install)
+(cd ../../cli-extensions && bun install)
+(cd ../../platform && bun install)
 bun run link:framework
 bun run check
 bun test
 bun run verify:tls
 ```
 
-`link:framework` registers Bun links from that exact sibling checkout and refreshes
+`link:framework` registers Bun links from those sibling checkouts and refreshes
 the install. These are live directory links, not registry packages or copied
-snapshots. Rebuild the framework after changing its compiled packages. Bun's link
+snapshots. Rebuild a checkout after changing its compiled packages. Bun's link
 registry is user-wide; rerun this helper if another checkout replaces the links.
 The per-app release ranges are overridden by the workspace's local links.
 
@@ -68,7 +71,7 @@ passed. That run also passed typechecking and all 37 local tests.
 
 ## Deploy all examples
 
-Requirements: a running Docker Engine, Bun 1.3+, Node.js 22+, `kubectl`, `oras`,
+Requirements: a running container engine (Docker or Podman), Bun 1.3+, Node.js 22+, `kubectl`, `oras`,
 `git`, `tar`, and either the built `../bin/di-framework-kube` or `di-framework-kube` on PATH.
 From the repository root:
 
@@ -90,7 +93,7 @@ ORAS publish components. wasmCloud pulls the same artifacts through the
 registry's internal Kubernetes service. The port-forward closes after deployment;
 the registry and apps keep running.
 
-The deployment helper invokes `di-framework wasmcloud deploy <name> --yes` for
+The deployment helper invokes `di-framework platform deploy <name> --yes` for
 each discovered `apps/*/di-framework.config.json`. The checked-in
 `di-framework.deploy.toml` connects the CLI to this cluster. Generated components,
 WIT definitions, and workload manifests remain under each app's ignored `dist/` and
@@ -169,7 +172,7 @@ Build a component without deploying:
 
 ```sh
 cd apps/greeter
-../../node_modules/.bin/di-framework wasmcloud build
+../../node_modules/.bin/di-framework platform build
 ```
 
 The CLI uses stable content-derived tags, so unchanged builds reuse their
@@ -378,9 +381,9 @@ Local regression commands also passed:
 bun install --frozen-lockfile
 bun run check
 bun test  # 42 passed
-(cd ../../di-framework && bun test --timeout 30000 \
-  packages/di-framework-cli-plugin-wasmcloud/tests/node-compat-tls.test.ts \
-  packages/di-framework-cli-plugin-wasmcloud/tests/wash-dev.test.ts)
+(cd ../../cli-extensions && bun test --timeout 30000 \
+  packages/cli-plugin-platform/tests/node-compat-tls.test.ts \
+  packages/cli-plugin-platform/tests/wash-dev.test.ts)
 # 17 passed; the longer runner timeout accommodates component bundling.
 ```
 
@@ -409,7 +412,9 @@ both base images by digest. Source:
 [release build configuration](https://github.com/wasmCloud/wasmCloud/blob/v2.8.0/.github/workflows/wash.yml),
 [TLS linker registration](https://github.com/wasmCloud/wasmCloud/blob/v2.8.0/crates/wash-runtime/src/engine/mod.rs).
 
-Every `deploy` invocation runs `scripts/tls-runtime.ts` before upgrading Helm.
+`deploy` runs `scripts/tls-runtime.ts` before upgrading Helm when `node-tls` is
+among the selected apps, or when `DI_TLS_RUNTIME=always` is set. Other apps use
+the stock operator host image.
 The helper builds `docker.io/di-framework/wash:2.8.0-tls` if absent, verifies the
 source revision, and imports the image into the selected `kubesolo-$DI_KUBE_NAME`
 container's `k8s.io` containerd namespace. It downloads a checksum-verified static
@@ -418,8 +423,9 @@ omits the streaming service, and removes its temporary files after import.
 A first-time instance is bootstrapped before import; existing cluster volumes
 and credentials are reused. The first Rust build needs several GB of free Docker
 storage and substantially longer than an application build (25 minutes for the
-verified release compilation on a 16-CPU Docker VM). This helper supports
-Docker-managed Kubesolo on arm64 and amd64; the live result below is arm64.
+verified release compilation on a 16-CPU container VM). This helper supports
+Docker- or Podman-managed Kubesolo on arm64 and amd64; the live result below is arm64.
+Set `DI_CONTAINER_CLI=podman` when both engines are installed and Podman should be used.
 
 [`infra/tls-runtime/values.yaml`](infra/tls-runtime/values.yaml) selects the imported
 image with `pull_policy: Never`. All app deployments pass these values alongside

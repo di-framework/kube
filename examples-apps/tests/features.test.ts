@@ -98,11 +98,11 @@ test("SQLite jobs survive restart, retry, deduplicate, retain dead letters and s
   const waitFor = async (id: string, status: string) => {
     const deadline = Date.now() + 5000;
     while (Date.now() < deadline) {
-      const job = await backend.getJob(id);
+      const job = await backend.getJob("verification-receipts", id);
       if (job?.status === status) return job;
       await Bun.sleep(10);
     }
-    throw new Error(`Job ${id} did not reach ${status}: ${JSON.stringify(await backend.getJob(id))}`);
+    throw new Error(`Job ${id} did not reach ${status}: ${JSON.stringify(await backend.getJob("verification-receipts", id))}`);
   };
   try {
     const job = await backend.enqueue("verification-receipts", { id: "receipt-retry", amount: 3000, failUntilAttempt: 1 }, { idempotencyKey: "receipt-retry", backoffMs: 1 });
@@ -110,7 +110,7 @@ test("SQLite jobs survive restart, retry, deduplicate, retain dead letters and s
     expect(duplicate.id).toBe(job.id);
     await backend.close();
     backend = new SqliteQueueBackend(path);
-    expect((await backend.getJob(job.id))?.status).toBe("pending");
+    expect((await backend.getJob("verification-receipts", job.id))?.status).toBe("pending");
     worker = new QueueWorker(backend, dispatcher, { queues: ["verification-receipts"], pollIntervalMs: 5 });
     worker.start();
     expect((await waitFor(job.id, "completed")).attempts).toBe(2);
@@ -120,7 +120,7 @@ test("SQLite jobs survive restart, retry, deduplicate, retain dead letters and s
     await worker.stop(); worker = undefined;
     const retried = await backend.retryJob("verification-receipts", bad.id);
     expect(retried).toHaveLength(1);
-    expect((await backend.getJob(bad.id))?.status).toBe("pending");
+    expect((await backend.getJob("verification-receipts", bad.id))?.status).toBe("pending");
     const queues = await cli("queue", "list", "--db", path, "--json");
     expect(queues.queues.find((queue: { name: string }) => queue.name === "verification-receipts").completed).toBe(1);
   } finally {

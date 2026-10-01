@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { hostInterfacesFromRequirements } from "../node_modules/@di-framework/cli-plugin-wasmcloud/dist/host-interface";
-import type { WitRequirement } from "../node_modules/@di-framework/cli-plugin-wasmcloud/dist/wit";
+import { hostInterfacesFromRequirements } from "../node_modules/@di-framework/cli-plugin-platform/dist/host-interface";
+import type { WitRequirement } from "../node_modules/@di-framework/cli-plugin-platform/dist/wit";
 
 const http: WitRequirement = {
   package: "wasi:http", version: "0.3.0", interfaces: ["handler"],
