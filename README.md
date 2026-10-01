@@ -187,7 +187,7 @@ After the cluster is reachable, `up` writes a small Pulumi project that runs the
 - the tenancy controller, which reconciles backing services and bindings, publishes
   console log projections, and mounts platform-managed workload storage.
 
-A fresh managed instance with one tenant takes about 9 minutes to come up on a
+A fresh managed instance with one tenant takes 8–9 minutes to come up on a
 laptop, most of it image pulls and the first tenant host rollout.
 
 Install Node.js, npm, and the Pulumi CLI before running `up`. By default the CLI
@@ -281,4 +281,10 @@ under `<state-dir>/<name>/platform`.
   route into a tenant's workloads. The shared entrypoint on the published HTTP port
   (`127.0.0.1:28080` by default) reaches only the default host group, so tenant
   workloads are not reachable there. Use a port-forward to the tenant's `di-http`
-  Service until this is addressed.
+  Service until this is addressed
+  ([#2](https://github.com/di-framework/kube/issues/2)):
+
+  ```sh
+  KUBECONFIG="$(di-framework-kube kubeconfig --name <instance>)" \
+    kubectl -n di-runtime-<tenant> port-forward svc/di-http 28190:80
+  ```
