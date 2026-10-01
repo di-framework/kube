@@ -68,10 +68,7 @@ func (m *Manager) Ensure(ctx context.Context, options Options) ([]byte, bool, er
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, binary, installArgs(m.version(), options)...)
-	cmd.Stdout = writerOrDiscard(m.Stdout)
-	cmd.Stderr = writerOrDiscard(m.Stderr)
-	if err := cmd.Run(); err != nil {
+	if err := m.run(ctx, binary, installArgs(m.version(), options)...); err != nil {
 		return nil, false, fmt.Errorf("install Kubesolo: %w", err)
 	}
 
@@ -105,13 +102,44 @@ func (m *Manager) Uninstall(ctx context.Context, options Options, purge bool) er
 	if purge {
 		args = append(args, "--purge")
 	}
-	cmd := exec.CommandContext(ctx, binary, args...)
-	cmd.Stdout = writerOrDiscard(m.Stdout)
-	cmd.Stderr = writerOrDiscard(m.Stderr)
-	if err := cmd.Run(); err != nil {
+	if err := m.run(ctx, binary, args...); err != nil {
 		return fmt.Errorf("uninstall Kubesolo: %w", err)
 	}
 	return nil
+}
+
+// run executes kubesoloctl with a private, temporary HOME. kubesoloctl merges the
+// admin kubeconfig into $HOME/.kube/config on install and unsets the
+// kubernetes-admin user there on uninstall. Every Kubesolo instance names its user
+// kubernetes-admin, so either step would break the other instances' contexts in the
+// shared file. Callers export the kubeconfig with `kubeconfig view` and save it per
+// instance instead.
+func (m *Manager) run(ctx context.Context, binary string, args ...string) error {
+	home, err := os.MkdirTemp("", "di-framework-kube-home-")
+	if err != nil {
+		return fmt.Errorf("create kubesoloctl home: %w", err)
+	}
+	defer os.RemoveAll(home)
+	cmd := exec.CommandContext(ctx, binary, args...)
+	cmd.Env = isolatedEnv(os.Environ(), home)
+	cmd.Stdout = writerOrDiscard(m.Stdout)
+	cmd.Stderr = writerOrDiscard(m.Stderr)
+	return cmd.Run()
+}
+
+// isolatedEnv points HOME at home and drops the variables kubesoloctl uses to find
+// the invoking user's kubeconfig (KUBECONFIG, and the sudo/doas user's home).
+func isolatedEnv(environ []string, home string) []string {
+	result := make([]string, 0, len(environ)+1)
+	for _, entry := range environ {
+		key, _, _ := strings.Cut(entry, "=")
+		switch key {
+		case "HOME", "KUBECONFIG", "SUDO_USER", "SUDO_UID", "SUDO_GID", "DOAS_USER":
+			continue
+		}
+		result = append(result, entry)
+	}
+	return append(result, "HOME="+home)
 }
 
 func (m *Manager) exportKubeconfig(ctx context.Context, binary string, options Options) ([]byte, error) {

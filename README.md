@@ -3,10 +3,12 @@
 `di-framework-kube` is a single distributable CLI that creates an isolated
 [Kubesolo](https://github.com/portainer/kubesolo) cluster and installs the
 [wasmCloud runtime operator](https://wasmcloud.com/docs/kubernetes-operator/).
-It is intended to replace the Docker + k0s + Pulumi platform bootstrap used by
-the DI Framework wasmCloud prototype.
+Kubesolo creation and deletion stay in this CLI. Everything installed inside the
+cluster (wasmCloud, tenancy, admission, routing) comes from the published
+`@di-framework/platform` package, which `up` applies through Pulumi.
 
-The binary contains the Helm client, so `helm` is not required. It downloads
+Node.js, npm, and Pulumi are required for provisioning. The binary retains a Helm
+client for status and legacy cleanup, so `helm` is not required. It downloads
 the pinned official `kubesoloctl` executable on first use, verifies its SHA-256
 digest, and caches it. Kubesolo and wasmCloud container images are still pulled
 from their upstream registries.
@@ -30,7 +32,10 @@ di-framework-kube outputs
 
 The default instance is named `local`. Its Kubernetes API and credentials are
 kept in a dedicated kubeconfig rather than read from the current `kubectl`
-context. Workload HTTP is published only on `127.0.0.1:28080` and reaches the
+context, and `up` prints its path. `up` and `down` never write to
+`~/.kube/config`: every Kubesolo instance names its admin user
+`kubernetes-admin`, so merging one instance there would replace another's
+credentials. Use `di-framework-kube kubeconfig --name <instance>` instead. Workload HTTP is published only on `127.0.0.1:28080` and reaches the
 default wasmCloud host group through NodePort `30080`.
 
 `outputs` prints the connection contract for other tooling:
@@ -169,3 +174,120 @@ images currently come from upstream registries.
 ## License
 
 Licensed under either the MIT License or Apache License 2.0, at your option.
+
+## Shared Pulumi platform
+
+After the cluster is reachable, `up` writes a small Pulumi project that runs the
+`@di-framework/platform/existing` entrypoint against it. That package installs:
+
+- the wasmCloud runtime operator, with `allowSharedHosts=false` (administrator Helm
+  values cannot turn it back on), plus the default host group and the HTTP entrypoint;
+- the `Tenant` and `User` CRDs and the tenants and users you declare;
+- per tenant: a namespace, a dedicated `hostgroup-<tenant>` wash host in its runtime
+  namespace, quotas, network policy, and a `di-user-<name>` service account per member;
+- the validating admission policies that keep tenant workloads in their own
+  environment and limit them to approved host interfaces, bindings, and volumes;
+- the tenancy controller, which reconciles backing services and bindings, publishes
+  console log projections, and mounts platform-managed workload storage.
+
+A fresh managed instance with one tenant takes 8–9 minutes to come up on a
+laptop, most of it image pulls and the first tenant host rollout.
+
+Install Node.js, npm, and the Pulumi CLI before running `up`. By default the CLI
+installs the pinned `@di-framework/platform@6.0.2` from npm:
+
+```sh
+di-framework-kube up
+```
+
+Select another published version with `--platform-package`:
+
+```sh
+di-framework-kube up --platform-package @di-framework/platform@6.0.3
+```
+
+The pin moves with this CLI's releases (`DefaultPlatformPackage` in
+`internal/platform/pulumi.go`). Use an exact version; ranges are rejected.
+
+Use `--platform-config /absolute/path/platform.json` for tenant declarations:
+
+```json
+{
+  "tenants": [{ "name": "alpha" }],
+  "users": [{ "name": "alice", "memberships": [{ "tenant": "alpha", "role": "developer" }] }]
+}
+```
+
+Updates without this flag preserve existing tenant/user declarations. Supplying
+it replaces those declarations. The file also accepts `tenantHostImage` and
+`tenantHostImagePullPolicy`, `storageRoot`, and `networkPolicyEngine` (`existing` or `kube-router`).
+Managed Kubesolo defaults to the shared package's policy-only kube-router
+controller; external clusters default to their existing policy engine. `--values` still accepts administrator Helm values;
+shared-host and watched-namespace security settings cannot be overridden.
+
+Each instance stores its Pulumi project under `<state-dir>/<name>/platform`, with
+stack `dev`, a local file backend, and a mode-0600 `.passphrase` file. Back up this
+whole directory. Do not create another stack for the same cluster. A cluster-level
+ownership claim rejects competing installations and is released only after a
+successful `down`. `down --purge-cluster` destroys the platform before deleting
+Kubesolo and its data. Failed updates keep their project and connection state so
+`up` can retry and `down` can clean up.
+
+To inspect or operate the same project directly, change into that directory and
+set `PULUMI_CONFIG_PASSPHRASE` from `.passphrase` without printing it, then use
+`pulumi preview --stack dev` or `pulumi up --stack dev`. The project records its
+backend URL. Do not run direct Pulumi commands and this CLI concurrently. Use the existing
+cluster deployment target in the framework CLI, with this instance's kubeconfig
+and your application registry. Cluster creation/deletion remains owned by this CLI.
+
+### Existing installations
+
+An existing Helm-only installation is not silently imported or replaced. `up`
+refuses it and leaves it intact. Existing state still supports Helm `status` and
+`down`. Back up workload/backend data and arrange application downtime before
+explicitly removing the legacy release with `down`; a subsequent `up` creates
+the shared platform. Automated resource/data import is not provided. Retained
+tenant data is not a backup, and purging the cluster removes it.
+
+The shared tenant storage profile currently uses single-node host paths under
+`/var/lib/kubesolo`; it is intended for local Kubesolo clusters. External clusters
+must provide suitable storage/network-policy enforcement before using tenancy.
+The policy-only kube-router profile preserves Kubesolo's CNI and service proxy;
+it requires node privileges and uses the pinned v2.10.0 image. See the upstream
+[selective functionality documentation](https://www.kube-router.io/docs/user-guide/).
+
+### Developing the shared package locally
+
+Use a tarball only when testing unpublished changes to `@di-framework/platform`:
+
+```sh
+# In the platform package directory:
+bun run build
+npm pack --pack-destination /tmp
+
+# In di-framework-kube:
+go run ./cmd/di-framework-kube up --name shared-test \
+  --http-port 28089 \
+  --platform-package file:/tmp/di-framework-platform-6.0.2.tgz
+```
+
+Use the filename produced by `npm pack` if the package version differs. `up` copies
+the tarball into the project as `vendor/platform-<sha256>.tgz` and depends on that
+copy, so rebuilding the tarball at the same path and version and rerunning `up`
+installs the new build. To check which build is installed, compare
+`shasum -a 256 /tmp/di-framework-platform-6.0.2.tgz` with the `vendor/` file name
+under `<state-dir>/<name>/platform`.
+
+### Known limitations
+
+- The tenant's own `di-http` Service in its runtime namespace is the only HTTP
+  route into a tenant's workloads. The shared entrypoint on the published HTTP port
+  (`127.0.0.1:28080` by default) reaches only the default host group, so tenant
+  workloads are not reachable there. Use a port-forward to the tenant's `di-http`
+  Service until this is addressed
+  ([#2](https://github.com/di-framework/kube/issues/2)):
+
+  ```sh
+  KUBECONFIG="$(di-framework-kube kubeconfig --name <instance>)" \
+    kubectl -n di-runtime-<tenant> port-forward svc/di-http 28190:80
+  ```
