@@ -280,14 +280,23 @@ under `<state-dir>/<name>/platform`.
 
 ### Known limitations
 
-- The tenant's own `di-http` Service in its runtime namespace is the only HTTP
-  route into a tenant's workloads. The shared entrypoint on the published HTTP port
-  (`127.0.0.1:28080` by default) reaches only the default host group, so tenant
-  workloads are not reachable there. Use a port-forward to the tenant's `di-http`
-  Service until this is addressed
-  ([#2](https://github.com/di-framework/kube/issues/2)):
+- With the platform release pinned here, the published HTTP port
+  (`127.0.0.1:28080` by default) reaches only the default host group, and the
+  tenant's own `di-http` Service in its runtime namespace is the only HTTP route
+  into a tenant's workloads
+  ([#2](https://github.com/di-framework/kube/issues/2)). Use a port-forward to it:
 
   ```sh
   KUBECONFIG="$(di-framework-kube kubeconfig --name <instance>)" \
     kubectl -n di-runtime-<tenant> port-forward svc/di-http 28190:80
   ```
+
+  The platform HTTP gateway
+  ([di-framework/platform#19](https://github.com/di-framework/platform/pull/19))
+  removes the port-forward. Once a platform release with it is installed
+  (`--platform-package`), tenant workloads are reachable at
+  `http://<route-host>.<tenant>.localhost:<http-port>/`, for example
+  `http://mesh-site.meshtastic.localhost:28080/`. Browsers and curl resolve
+  `*.localhost` to loopback. That release also exports `routeUrlPattern`
+  (`http://{host}.{tenant}.localhost:<http-port>`). The wrapper program does not
+  re-export it yet, because the pinned release does not provide it.
