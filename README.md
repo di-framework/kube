@@ -32,7 +32,10 @@ di-framework-kube outputs
 
 The default instance is named `local`. Its Kubernetes API and credentials are
 kept in a dedicated kubeconfig rather than read from the current `kubectl`
-context. Workload HTTP is published only on `127.0.0.1:28080` and reaches the
+context, and `up` prints its path. `up` and `down` never write to
+`~/.kube/config`: every Kubesolo instance names its admin user
+`kubernetes-admin`, so merging one instance there would replace another's
+credentials. Use `di-framework-kube kubeconfig --name <instance>` instead. Workload HTTP is published only on `127.0.0.1:28080` and reaches the
 default wasmCloud host group through NodePort `30080`.
 
 `outputs` prints the connection contract for other tooling:

@@ -226,6 +226,7 @@ func runUp(ctx context.Context, stdout, stderr io.Writer, store state.Store, opt
 		return err
 	}
 	fmt.Fprintf(stdout, "wasmCloud platform is ready in namespace %s. Pulumi project: %s\n", options.namespace, platformDir)
+	fmt.Fprintf(stdout, "Kubeconfig: %s\n", kubeconfig)
 
 	if managed && created {
 		fmt.Fprintln(stdout, "A new Kubesolo cluster was created.")
