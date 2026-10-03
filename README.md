@@ -220,7 +220,9 @@ Use `--platform-config /absolute/path/platform.json` for tenant declarations:
 
 Updates without this flag preserve existing tenant/user declarations. Supplying
 it replaces those declarations. The file also accepts `tenantHostImage` and
-`tenantHostImagePullPolicy`, `storageRoot`, and `networkPolicyEngine` (`existing` or `kube-router`).
+`tenantHostImagePullPolicy`, `storageRoot`, `networkPolicyEngine` (`existing` or `kube-router`),
+and `egressAllowedDestinations`, the `host:port` / `*.suffix:port` entries the platform's
+`egress-public` class approves for tenant egress (default `[]`, which approves nothing).
 Managed Kubesolo defaults to the shared package's policy-only kube-router
 controller; external clusters default to their existing policy engine. `--values` still accepts administrator Helm values;
 shared-host and watched-namespace security settings cannot be overridden.

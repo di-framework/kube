@@ -91,6 +91,40 @@ func TestSharedProgramLifecycle(t *testing.T) {
 	}
 }
 
+func TestPlatformConfigPassesEgressDestinations(t *testing.T) {
+	dir := t.TempDir()
+	p := Pulumi{Directory: dir, Kubeconfig: "/tmp/kube", Namespace: "wasmcloud"}
+	configPath := filepath.Join(dir, "declarations.json")
+	os.WriteFile(configPath, []byte(`{"tenants":[],"egressAllowedDestinations":["10.43.250.25:1025"]}`), 0600)
+	p.ConfigFile = configPath
+	opts := InstallOptions{Release: "wasmcloud", Chart: DefaultChart, ChartVersion: DefaultChartVersion, Timeout: time.Minute}
+	if _, err := p.prepare(opts); err != nil {
+		t.Fatal(err)
+	}
+	read := func() []any {
+		b, _ := os.ReadFile(filepath.Join(dir, "Pulumi.dev.yaml"))
+		var stack map[string]any
+		json.Unmarshal(b, &stack)
+		destinations, _ := stack["config"].(map[string]any)["di-framework-kube:egressAllowedDestinations"].([]any)
+		return destinations
+	}
+	if got := read(); len(got) != 1 || got[0] != "10.43.250.25:1025" {
+		t.Fatal(got)
+	}
+	p.ConfigFile = ""
+	if _, err := p.prepare(opts); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(); len(got) != 1 {
+		t.Fatal("lost egress destinations on update", got)
+	}
+	os.WriteFile(configPath, []byte(`{"egressAllowed":[]}`), 0600)
+	p.ConfigFile = configPath
+	if _, err := p.prepare(opts); err == nil || !strings.Contains(err.Error(), `unsupported platform config key "egressAllowed"`) {
+		t.Fatal(err)
+	}
+}
+
 func TestRefusesChangedTargetAndUnownedCluster(t *testing.T) {
 	p := Pulumi{Directory: t.TempDir(), Kubeconfig: "/tmp/kube", Namespace: "wasmcloud"}
 	opts := InstallOptions{Release: "wasmcloud"}

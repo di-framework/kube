@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -26,6 +27,18 @@ import (
 const DefaultPlatformPackage = "@di-framework/platform@6.0.2"
 
 // The wrapper contains no infrastructure definitions: both entrypoints use this package.
+// platformConfigKeys are the --platform-config keys passed to the platform's Pulumi config.
+// An update without --platform-config keeps their previous values.
+var platformConfigKeys = []string{
+	"tenants",
+	"users",
+	"tenantHostImage",
+	"tenantHostImagePullPolicy",
+	"networkPolicyEngine",
+	"storageRoot",
+	"egressAllowedDestinations",
+}
+
 const platformProgram = `export { schemaVersion, kubeconfig, namespace, endpoints, tenants, users } from '@di-framework/platform/existing';
 `
 
@@ -154,7 +167,7 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 		if err := yaml.Unmarshal(old, &stack); err != nil {
 			return identity, err
 		}
-		for _, key := range []string{"tenants", "users", "tenantHostImage", "tenantHostImagePullPolicy", "networkPolicyEngine", "storageRoot"} {
+		for _, key := range platformConfigKeys {
 			if value, ok := stack.Config["di-framework-kube:"+key]; ok {
 				config[key] = value
 			}
@@ -175,7 +188,7 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 			return identity, errors.New("platform config must be a JSON object")
 		}
 		for k := range config {
-			if k != "tenants" && k != "users" && k != "tenantHostImage" && k != "tenantHostImagePullPolicy" && k != "networkPolicyEngine" && k != "storageRoot" {
+			if !slices.Contains(platformConfigKeys, k) {
 				return identity, fmt.Errorf("unsupported platform config key %q", k)
 			}
 		}
