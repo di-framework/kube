@@ -91,6 +91,35 @@ func TestSharedProgramLifecycle(t *testing.T) {
 	}
 }
 
+func TestDefaultTenantHostImage(t *testing.T) {
+	dir := t.TempDir()
+	p := Pulumi{Directory: dir, Kubeconfig: "/tmp/kube", Namespace: "wasmcloud"}
+	opts := InstallOptions{Release: "wasmcloud"}
+	if _, err := p.prepare(opts); err != nil {
+		t.Fatal(err)
+	}
+	read := func() string {
+		b, err := os.ReadFile(filepath.Join(dir, "Pulumi.dev.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	if !strings.Contains(read(), DefaultTenantHostImage) {
+		t.Fatal(read())
+	}
+	configPath := filepath.Join(dir, "declarations.json")
+	os.WriteFile(configPath, []byte(`{"tenantHostImage":"example/wash:local"}`), 0600)
+	p.ConfigFile = configPath
+	if _, err := p.prepare(opts); err != nil {
+		t.Fatal(err)
+	}
+	got := read()
+	if !strings.Contains(got, "example/wash:local") || strings.Contains(got, "ee89fd4b") {
+		t.Fatal(got)
+	}
+}
+
 func TestPlatformConfigPassesEgressDestinations(t *testing.T) {
 	dir := t.TempDir()
 	p := Pulumi{Directory: dir, Kubeconfig: "/tmp/kube", Namespace: "wasmcloud"}

@@ -1,8 +1,9 @@
-# Imported into the selected Kubesolo node by scripts/tls-runtime.ts.
-# Keep this override on every Helm upgrade, including deployments of other apps.
+# Imported into the selected Kubesolo node by scripts/tls-runtime.ts from the
+# published index digest. Keep this override on every Helm upgrade, including
+# deployments of other apps. pull_policy Never uses that import.
 runtime:
   image:
-    registry: docker.io
+    registry: ghcr.io
     repository: di-framework/wash
-    tag: 2.8.0-tls
+    tag: 2.8.0-wasi-tls
     pull_policy: Never

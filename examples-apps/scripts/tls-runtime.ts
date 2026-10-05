@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { binary, instance, run, workspace } from "./platform";
+import { join } from "node:path";
+import { binary, instance, run } from "./platform";
 
-const revision = "5c4ec4a3d008b3f401d9e763515f434deebc9936";
-const image = "docker.io/di-framework/wash:2.8.0-tls";
+const image =
+  "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669";
+const imported = "ghcr.io/di-framework/wash:2.8.0-wasi-tls";
 const checksums: Record<string, string> = {
   arm64: "5f2a7f451231ff35d8306f874c51606fc9da1e2db56048834a23260f68a78eef",
   amd64: "2d20037947cbb0def12b8ac0c572b212284c1832bf3c921df1e58975515d1d08",
@@ -34,12 +35,9 @@ export async function prepareTlsRuntime() {
   console.log(`Preparing TLS runtime for ${container} with ${engine}`);
   const directory = mkdtempSync(join(tmpdir(), "di-kube-tls-runtime-"));
   try {
-    if (!await succeeds([engine, "image", "inspect", image])) {
-      const source = join(directory, "source");
-      await run(["git", "clone", "--depth", "1", "--branch", "v2.8.0", "https://github.com/wasmCloud/wasmCloud.git", source]);
-      const actual = await run(["git", "rev-parse", "HEAD"], { cwd: source, capture: true });
-      if (actual !== revision) throw new Error(`Unexpected wasmCloud v2.8.0 revision: ${actual}`);
-      await run([engine, "build", "--progress=plain", "-f", resolve(workspace, "infra/tls-runtime/Dockerfile"), "-t", image, source]);
+    if (!await succeeds([engine, "image", "inspect", imported])) {
+      await run([engine, "pull", image]);
+      await run([engine, "tag", image, imported]);
     }
     if (!await succeeds([engine, "inspect", container])) {
       // Bootstrap once before importing the image. Existing clusters and data stay intact.
@@ -60,14 +58,14 @@ export async function prepareTlsRuntime() {
     try {
       await run([engine, "cp", join(directory, "bin/ctr"), `${container}:${remote}/ctr`]);
       const tar = join(directory, "wash.tar");
-      await run([engine, "save", "-o", tar, image]);
+      await run([engine, "save", "-o", tar, imported]);
       await run([engine, "cp", tar, `${container}:${remote}/wash.tar`]);
       // Kubesolo omits containerd's transfer/streaming service; use direct import.
       await run([engine, "exec", container, `${remote}/ctr`, "--address", "/run/containerd/containerd.sock", "--namespace", "k8s.io", "images", "import", "--local", `${remote}/wash.tar`]);
     } finally {
       await run([engine, "exec", container, "rm", "-rf", remote]);
     }
-    console.log(`TLS runtime ${image} imported into ${container}`);
+    console.log(`TLS runtime ${imported} imported into ${container}`);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
