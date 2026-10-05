@@ -400,40 +400,25 @@ instance export `error` has the wrong type: resource implementation is missing
 ```
 
 The release image uses Cargo's default features, which omit `wasi-tls`.
-The existing runtime registers the TLS resources only when that feature is
-compiled in. This is a host build configuration issue; changing the guest WIT
-or bypassing certificate verification is unnecessary.
-
-[`infra/tls-runtime/Dockerfile`](infra/tls-runtime/Dockerfile) builds upstream
-wasmCloud **2.8.0**, commit `5c4ec4a3d008b3f401d9e763515f434deebc9936`, with
-`cargo build --locked --release --bin wash --features wasi-tls`. It retains the
-default host features, uses the upstream lockfile (Wasmtime **47.0.3**), and pins
-both base images by digest. Source:
-[release build configuration](https://github.com/wasmCloud/wasmCloud/blob/v2.8.0/.github/workflows/wash.yml),
-[TLS linker registration](https://github.com/wasmCloud/wasmCloud/blob/v2.8.0/crates/wash-runtime/src/engine/mod.rs).
+The runtime registers the TLS resources only when that feature is compiled in.
 
 `deploy` runs `scripts/tls-runtime.ts` before upgrading Helm when `node-tls` is
-among the selected apps, or when `DI_TLS_RUNTIME=always` is set. Other apps use
-the stock operator host image.
-The helper builds `docker.io/di-framework/wash:2.8.0-tls` if absent, verifies the
-source revision, and imports the image into the selected `kubesolo-$DI_KUBE_NAME`
-container's `k8s.io` containerd namespace. It downloads a checksum-verified static
-`ctr` from containerd **2.2.0**, uses `images import --local` because Kubesolo
-omits the streaming service, and removes its temporary files after import.
-A first-time instance is bootstrapped before import; existing cluster volumes
-and credentials are reused. The first Rust build needs several GB of free Docker
-storage and substantially longer than an application build (25 minutes for the
-verified release compilation on a 16-CPU container VM). This helper supports
-Docker- or Podman-managed Kubesolo on arm64 and amd64; the live result below is arm64.
+among the selected apps, or when `DI_TLS_RUNTIME=always` is set. The helper pulls
+`ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669`
+and imports it as `ghcr.io/di-framework/wash:2.8.0-wasi-tls` into the selected
+`kubesolo-$DI_KUBE_NAME` container's `k8s.io` containerd namespace. It downloads a
+checksum-verified static `ctr` from containerd **2.2.0** and uses `images import --local`
+because Kubesolo omits the streaming service. A first-time instance is bootstrapped
+before import; existing cluster volumes and credentials are reused. This helper
+supports Docker- or Podman-managed Kubesolo on arm64 and amd64.
 Set `DI_CONTAINER_CLI=podman` when both engines are installed and Podman should be used.
 
-[`infra/tls-runtime/values.yaml`](infra/tls-runtime/values.yaml) selects the imported
-image with `pull_policy: Never`. All app deployments pass these values alongside
+[`infra/tls-runtime/values.yaml`](infra/tls-runtime/values.yaml) selects that imported
+tag with `pull_policy: Never`. All app deployments pass these values alongside
 the existing PostgreSQL configuration, so deploying another app cannot reset the
 host to the stock image. The operator chart remains **2.8.0**. The host rollout
-briefly restarts its workloads. To rebuild after editing the runtime recipe,
-rebuild the local image explicitly using the Dockerfile and pinned source before
-redeploying; a cached image is otherwise reused.
+briefly restarts its workloads. A cached local tag is reused; delete it before
+`bun run runtime:tls` to pull the pinned digest again.
 
 ```sh
 # Optional: build/import the runtime ahead of deployment.

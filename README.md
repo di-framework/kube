@@ -219,8 +219,10 @@ Use `--platform-config /absolute/path/platform.json` for tenant declarations:
 ```
 
 Updates without this flag preserve existing tenant/user declarations. Supplying
-it replaces those declarations. The file also accepts `tenantHostImage` and
-`tenantHostImagePullPolicy`, `storageRoot`, `networkPolicyEngine` (`existing` or `kube-router`),
+it replaces those declarations. Unless the file sets `tenantHostImage`, `up` pins
+the tenant host to
+`ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669`.
+The file also accepts `tenantHostImagePullPolicy`, `storageRoot`, `networkPolicyEngine` (`existing` or `kube-router`),
 and `egressAllowedDestinations`, the `host:port` / `*.suffix:port` entries the platform's
 `egress-public` class approves for tenant egress (default `[]`, which approves nothing).
 Managed Kubesolo defaults to the shared package's policy-only kube-router

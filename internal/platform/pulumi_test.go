@@ -91,6 +91,58 @@ func TestSharedProgramLifecycle(t *testing.T) {
 	}
 }
 
+func TestDefaultTenantHostImage(t *testing.T) {
+	dir := t.TempDir()
+	p := Pulumi{Directory: dir, Kubeconfig: "/tmp/kube", Namespace: "wasmcloud"}
+	opts := InstallOptions{Release: "wasmcloud"}
+	if _, err := p.prepare(opts); err != nil {
+		t.Fatal(err)
+	}
+	read := func() string {
+		b, err := os.ReadFile(filepath.Join(dir, "Pulumi.dev.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	if !strings.Contains(read(), DefaultTenantHostImage) {
+		t.Fatal(read())
+	}
+	configPath := filepath.Join(dir, "declarations.json")
+	os.WriteFile(configPath, []byte(`{"tenantHostImage":"example/wash:local"}`), 0600)
+	p.ConfigFile = configPath
+	if _, err := p.prepare(opts); err != nil {
+		t.Fatal(err)
+	}
+	got := read()
+	if !strings.Contains(got, "example/wash:local") || strings.Contains(got, "ee89fd4b") {
+		t.Fatal(got)
+	}
+}
+
+func TestReplacesRetiredTenantHostImageDefault(t *testing.T) {
+	previous := previousTenantHostImages
+	previousTenantHostImages = []string{"ghcr.io/example/wash:retired"}
+	t.Cleanup(func() { previousTenantHostImages = previous })
+	dir := t.TempDir()
+	saved := []byte("{\"config\":{\"di-framework-kube:tenantHostImage\":\"ghcr.io/example/wash:retired\"}}\n")
+	if err := os.WriteFile(filepath.Join(dir, "Pulumi.dev.yaml"), saved, 0600); err != nil {
+		t.Fatal(err)
+	}
+	p := Pulumi{Directory: dir, Kubeconfig: "/tmp/kube", Namespace: "wasmcloud"}
+	if _, err := p.prepare(InstallOptions{Release: "wasmcloud"}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "Pulumi.dev.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(b)
+	if !strings.Contains(got, DefaultTenantHostImage) || strings.Contains(got, "wash:retired") {
+		t.Fatal(got)
+	}
+}
+
 func TestPlatformConfigPassesEgressDestinations(t *testing.T) {
 	dir := t.TempDir()
 	p := Pulumi{Directory: dir, Kubeconfig: "/tmp/kube", Namespace: "wasmcloud"}

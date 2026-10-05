@@ -26,6 +26,23 @@ import (
 // --platform-package @di-framework/platform@<version> or file:<absolute tarball path>.
 const DefaultPlatformPackage = "@di-framework/platform@6.0.2"
 
+// DefaultTenantHostImage is the published wash image with wasi-tls. The tag moves
+// on the next publish; this digest is the multi-arch index. A platform-config
+// tenantHostImage replaces it.
+const DefaultTenantHostImage = "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669"
+
+// previousTenantHostImages are values this CLI used to write as
+// DefaultTenantHostImage. A saved copy is the old default, not a user choice,
+// so the next up replaces it. Add the previous constant here when the pin changes.
+var previousTenantHostImages []string
+
+func applyTenantHostImage(config map[string]any) {
+	image, _ := config["tenantHostImage"].(string)
+	if image == "" || image == DefaultTenantHostImage || slices.Contains(previousTenantHostImages, image) {
+		config["tenantHostImage"] = DefaultTenantHostImage
+	}
+}
+
 // The wrapper contains no infrastructure definitions: both entrypoints use this package.
 // platformConfigKeys are the --platform-config keys passed to the platform's Pulumi config.
 // An update without --platform-config keeps their previous values.
@@ -205,6 +222,7 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 		}
 		values = merge(values, value)
 	}
+	applyTenantHostImage(config)
 	if _, ok := config["networkPolicyEngine"]; !ok {
 		engine := p.NetworkPolicyEngine
 		if engine == "" {
