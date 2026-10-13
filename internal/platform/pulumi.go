@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"sigs.k8s.io/yaml"
 )
@@ -54,6 +55,114 @@ var platformConfigKeys = []string{
 	"networkPolicyEngine",
 	"storageRoot",
 	"egressAllowedDestinations",
+	"routeAliases",
+	"tenantAuth",
+}
+
+// routeAliasRulesNote ends every routeAliases error. Only the shape is checked here:
+// the platform owns the route grammar and checks it during pulumi up.
+const routeAliasRulesNote = "route grammar, reserved names and alias chains are checked by the platform during pulumi up"
+
+// validatePlatformConfigValue checks the shape of object-valued keys the platform
+// reads with config.getObject. Values pass through to the stack config unchanged.
+func validatePlatformConfigValue(key string, value any) error {
+	switch key {
+	case "routeAliases":
+		aliases, ok := value.(map[string]any)
+		if !ok {
+			return fmt.Errorf("platform config routeAliases must be a JSON object mapping route names to route names, got %s (%s)", jsonKind(value), routeAliasRulesNote)
+		}
+		for name, target := range aliases {
+			if name == "" {
+				return fmt.Errorf("platform config routeAliases has an empty route name (%s)", routeAliasRulesNote)
+			}
+			if strings.IndexFunc(name, unicode.IsSpace) >= 0 {
+				return fmt.Errorf("platform config routeAliases route name %q must not contain whitespace (%s)", name, routeAliasRulesNote)
+			}
+			s, ok := target.(string)
+			if !ok || s == "" {
+				return fmt.Errorf("platform config routeAliases[%q] must be a non-empty string, got %s (%s)", name, jsonKind(target), routeAliasRulesNote)
+			}
+			if strings.IndexFunc(s, unicode.IsSpace) >= 0 {
+				return fmt.Errorf("platform config routeAliases[%q] = %q must not contain whitespace (%s)", name, s, routeAliasRulesNote)
+			}
+		}
+	case "tenantAuth":
+		if _, ok := value.(map[string]any); !ok {
+			return fmt.Errorf("platform config tenantAuth must be a JSON object, got %s", jsonKind(value))
+		}
+	}
+	return nil
+}
+
+// validateKeptRouteAliases checks routeAliases kept from a previous up or set by hand
+// with pulumi config set. Without --path, Pulumi stores the object as a JSON string,
+// which config.getObject also parses, so that form is decoded before the check.
+func validateKeptRouteAliases(value any) error {
+	// pulumi config set --secret stores {"secure": "v1:..."}; the platform reads
+	// routeAliases as plain route names, so a secret cannot be validated or used.
+	if object, ok := value.(map[string]any); ok && len(object) == 1 {
+		if _, secret := object["secure"]; secret {
+			return errors.New("saved stack config (Pulumi.dev.yaml): routeAliases must not be a secret; set it without --secret or pass --platform-config")
+		}
+	}
+	if text, ok := value.(string); ok {
+		var decoded any
+		if err := json.Unmarshal([]byte(text), &decoded); err != nil {
+			return fmt.Errorf("saved stack config routeAliases is a string that is not a JSON object: %w", err)
+		}
+		value = decoded
+	}
+	if err := validatePlatformConfigValue("routeAliases", value); err != nil {
+		return fmt.Errorf("saved stack config (Pulumi.dev.yaml): %w; fix it there or pass --platform-config", err)
+	}
+	return nil
+}
+
+// readPlatformConfig reads and validates a --platform-config file. It writes nothing.
+func readPlatformConfig(path string) (map[string]any, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	config := map[string]any{}
+	if err := json.Unmarshal(b, &config); err != nil {
+		return nil, fmt.Errorf("decode platform config JSON: %w", err)
+	}
+	if config == nil {
+		return nil, errors.New("platform config must be a JSON object")
+	}
+	for k, v := range config {
+		if !slices.Contains(platformConfigKeys, k) {
+			return nil, fmt.Errorf("unsupported platform config key %q", k)
+		}
+		if err := validatePlatformConfigValue(k, v); err != nil {
+			return nil, err
+		}
+	}
+	return config, nil
+}
+
+func jsonKind(value any) string {
+	switch v := value.(type) {
+	case nil:
+		return "null"
+	case map[string]any:
+		return "an object"
+	case []any:
+		return "an array"
+	case string:
+		if v == "" {
+			return "an empty string"
+		}
+		return "a string"
+	case float64:
+		return "a number"
+	case bool:
+		return "a boolean"
+	default:
+		return fmt.Sprintf("%T", value)
+	}
 }
 
 const platformProgram = `export { schemaVersion, kubeconfig, namespace, endpoints, tenants, users } from '@di-framework/platform/existing';
@@ -121,6 +230,14 @@ func (p Pulumi) backend() string {
 func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 	if !filepath.IsAbs(p.Directory) {
 		return projectIdentity{}, errors.New("Pulumi project directory must be absolute")
+	}
+	// Validate the platform config before writing anything to the project.
+	var fileConfig map[string]any
+	if p.ConfigFile != "" {
+		var err error
+		if fileConfig, err = readPlatformConfig(p.ConfigFile); err != nil {
+			return projectIdentity{}, err
+		}
 	}
 	if err := os.MkdirAll(p.Directory, 0700); err != nil {
 		return projectIdentity{}, err
@@ -192,22 +309,11 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return identity, err
 	}
-	if p.ConfigFile != "" {
-		b, err := os.ReadFile(p.ConfigFile)
-		if err != nil {
+	if fileConfig != nil {
+		config = fileConfig
+	} else if aliases, ok := config["routeAliases"]; ok {
+		if err := validateKeptRouteAliases(aliases); err != nil {
 			return identity, err
-		}
-		config = map[string]any{}
-		if err := json.Unmarshal(b, &config); err != nil {
-			return identity, fmt.Errorf("decode platform config JSON: %w", err)
-		}
-		if config == nil {
-			return identity, errors.New("platform config must be a JSON object")
-		}
-		for k := range config {
-			if !slices.Contains(platformConfigKeys, k) {
-				return identity, fmt.Errorf("unsupported platform config key %q", k)
-			}
 		}
 	}
 	values := map[string]any{}

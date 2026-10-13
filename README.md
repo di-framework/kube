@@ -225,6 +225,17 @@ the tenant host to
 The file also accepts `tenantHostImagePullPolicy`, `storageRoot`, `networkPolicyEngine` (`existing` or `kube-router`),
 and `egressAllowedDestinations`, the `host:port` / `*.suffix:port` entries the platform's
 `egress-public` class approves for tenant egress (default `[]`, which approves nothing).
+Two object-valued keys pass through to the stack config unchanged, as JSON objects the
+platform reads with `config.getObject`:
+
+- `routeAliases`: administrator gateway route aliases, route name to route name, for example
+  `{"identity.identity": "identity.identity-pg"}`. `up` checks only the shape: an object
+  whose keys and values are non-empty strings without whitespace. It checks values from the file
+  before it writes anything, and values kept from a previous `up` or set by hand (not as a
+  secret) before it writes the stack config. Route grammar, reserved names and alias chains are
+  checked by the platform during `pulumi up`. Removing an alias from the file and running `up`
+  again removes it from the stack.
+- `tenantAuth`: the tenant auth controller and registry settings the platform package documents.
 Managed Kubesolo defaults to the shared package's policy-only kube-router
 controller; external clusters default to their existing policy engine. `--values` still accepts administrator Helm values;
 shared-host and watched-namespace security settings cannot be overridden.
