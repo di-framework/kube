@@ -212,6 +212,8 @@ di-framework-kube up --platform-package @di-framework/platform@6.0.12
 
 The pin moves with this CLI's releases (`DefaultPlatformPackage` in
 `internal/platform/pulumi.go`). Use an exact version; ranges are rejected.
+Moving the pin upgrades existing instances on their next `up`; read
+[Upgrading an existing instance](#upgrading-an-existing-instance) first.
 
 Use `--platform-config /absolute/path/platform.json` for tenant declarations:
 
@@ -227,8 +229,13 @@ it replaces those declarations. Unless the file sets `tenantHostImage`, `up` pin
 the tenant host to
 `ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad`,
 the platform's own default: wash 2.8.0 with wasi-tls and patch 0002 (`--insecure-registry`).
-A saved `tenantHostImage` equal to an earlier CLI default (`...@sha256:ee89fd4b...`) is
-replaced by the current default on the next `up`.
+A `tenantHostImage` equal to an earlier CLI default
+(`ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:ee89fd4b...`) is replaced by the current
+default on the next `up`, whether it was saved by an earlier `up` or set in `platform.json`,
+and `up` prints a one-line notice naming both images. To keep that build on purpose,
+reference it in a form the CLI does not match, for example
+`ghcr.io/di-framework/wash@sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669`
+(it predates patch 0002, so platform 6.0.11 and later refuse it with `insecureRegistries`).
 The file also accepts `tenantHostImagePullPolicy`, `storageRoot`, `networkPolicyEngine` (`existing` or `kube-router`),
 and `egressAllowedDestinations`, the `host:port` / `*.suffix:port` entries the platform's
 `egress-public` class approves for tenant egress (default `[]`, which approves nothing).
@@ -279,6 +286,32 @@ set `PULUMI_CONFIG_PASSPHRASE` from `.passphrase` without printing it, then use
 backend URL. Do not run direct Pulumi commands and this CLI concurrently. Use the existing
 cluster deployment target in the framework CLI, with this instance's kubeconfig
 and your application registry. Cluster creation/deletion remains owned by this CLI.
+
+### Upgrading an existing instance
+
+On an instance created by an earlier CLI release, a plain `up` with this release:
+
+1. **Upgrades the platform package** from the old pin (`@di-framework/platform@6.0.2` in
+   v0.0.4 and earlier) to `@di-framework/platform@6.0.13`.
+2. **Rolls every tenant host onto the new default image** (`...@sha256:d88158b0...`), whether the
+   instance ran the platform's previous default or the earlier CLI default `...@sha256:ee89fd4b...`.
+   This restarts all tenant workloads.
+3. **With `--allow-insecure-registries`, ends the tenant hosts' blanket plain-HTTP pulls.** Since
+   platform 6.0.11, tenant hosts get only the exact `host[:port]` entries in `insecureRegistries`.
+   A workload that pulls from a plain-HTTP registry, such as
+   `examples-registry.wasmcloud.svc.cluster.local:5000`, cannot re-pull after the restart in (2)
+   unless `insecureRegistries` lists that registry.
+
+Before upgrading:
+
+- **Check every workload's registry host.** List the component references your tenant workloads
+  use and note each plain-HTTP registry, spelled exactly as the references spell it.
+- **Carry those registries:** put them in `insecureRegistries` in `platform.json` (or keep a
+  hand-set list) and pass `--allow-insecure-registries` on the upgrade and every later `up`.
+- **To defer the upgrade,** pin the old package with
+  `--platform-package @di-framework/platform@6.0.2` and set `tenantHostImage` to the image the
+  instance runs today, in a form the CLI does not replace (see the note on earlier defaults
+  above). Both pins stay until you drop them.
 
 ### Existing installations
 

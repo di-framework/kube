@@ -59,8 +59,14 @@ func preAllowlistHostImage(image string) bool {
 	return false
 }
 
-func applyTenantHostImage(config map[string]any) {
+// applyTenantHostImage fills an unset tenantHostImage with the default and moves a
+// previous CLI default, saved or set in platform.json, to the current one. A move rolls
+// every tenant host, so it is announced on w.
+func applyTenantHostImage(w io.Writer, config map[string]any) {
 	image, _ := config["tenantHostImage"].(string)
+	if slices.Contains(previousTenantHostImages, image) {
+		fmt.Fprintf(w, "notice: tenantHostImage %s is an earlier di-framework-kube default; replacing it with %s, which rolls every tenant host\n", image, DefaultTenantHostImage)
+	}
 	if image == "" || image == DefaultTenantHostImage || slices.Contains(previousTenantHostImages, image) {
 		config["tenantHostImage"] = DefaultTenantHostImage
 	}
@@ -440,7 +446,7 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 		}
 		values = merge(values, value)
 	}
-	applyTenantHostImage(config)
+	applyTenantHostImage(writerOrDiscard(p.Stderr), config)
 	warnPreAllowlistHostImage(writerOrDiscard(p.Stderr), insecureRegistries, config["tenantHostImage"])
 	if _, ok := config["networkPolicyEngine"]; !ok {
 		engine := p.NetworkPolicyEngine

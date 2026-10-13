@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -605,10 +606,121 @@ func TestRebuiltTarballChangesDependency(t *testing.T) {
 	}
 }
 
+// parseVersion parses an exact MAJOR.MINOR.PATCH version.
+func parseVersion(t *testing.T, version string) [3]int {
+	t.Helper()
+	m := regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)$`).FindStringSubmatch(version)
+	if m == nil {
+		t.Fatalf("not an exact MAJOR.MINOR.PATCH version: %q", version)
+	}
+	var v [3]int
+	for i := range v {
+		n, err := strconv.Atoi(m[i+1])
+		if err != nil {
+			t.Fatal(err)
+		}
+		v[i] = n
+	}
+	return v
+}
+
+func compareVersions(a, b [3]int) int {
+	for i := range a {
+		if a[i] != b[i] {
+			return a[i] - b[i]
+		}
+	}
+	return 0
+}
+
 func TestDefaultPlatformPackageIsPinned(t *testing.T) {
-	if !regexp.MustCompile(`^@di-framework/platform@6\.0\.(1[3-9]|[2-9][0-9])$`).MatchString(DefaultPlatformPackage) {
+	// 6.0.13 is the first release that reads routeAliases; any exact later version passes.
+	version, ok := strings.CutPrefix(DefaultPlatformPackage, "@di-framework/platform@")
+	if !ok {
 		t.Fatal(DefaultPlatformPackage)
 	}
+	if compareVersions(parseVersion(t, version), parseVersion(t, "6.0.13")) < 0 {
+		t.Fatalf("DefaultPlatformPackage %s is older than 6.0.13", DefaultPlatformPackage)
+	}
+}
+
+func TestCompareVersions(t *testing.T) {
+	for _, tc := range []struct {
+		a, b string
+		want int
+	}{
+		{"6.0.13", "6.0.13", 0},
+		{"6.0.14", "6.0.13", 1},
+		{"6.0.100", "6.0.13", 1},
+		{"6.1.0", "6.0.13", 1},
+		{"7.0.0", "6.0.13", 1},
+		{"6.0.12", "6.0.13", -1},
+		{"6.0.2", "6.0.13", -1},
+		{"5.9.99", "6.0.13", -1},
+	} {
+		got := compareVersions(parseVersion(t, tc.a), parseVersion(t, tc.b))
+		if (got > 0) != (tc.want > 0) || (got < 0) != (tc.want < 0) {
+			t.Fatalf("compare(%s, %s) = %d, want sign %d", tc.a, tc.b, got, tc.want)
+		}
+	}
+}
+
+func TestAnnouncesPreviousDefaultImageSwap(t *testing.T) {
+	old := "ghcr.io/di-framework/wash:2.8.0-wasi-tls@" + oldHostDigest
+	notice := "notice: tenantHostImage " + old + " is an earlier di-framework-kube default; replacing it with " + DefaultTenantHostImage + ", which rolls every tenant host\n"
+	t.Run("saved", func(t *testing.T) {
+		p, opts := objectKeyTestPulumi(t)
+		var stderr bytes.Buffer
+		p.Stderr = &stderr
+		if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(`{"config":{"di-framework-kube:tenantHostImage":"`+old+`"}}`), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := p.prepare(opts); err != nil {
+			t.Fatal(err)
+		}
+		if stderr.String() != notice {
+			t.Fatalf("stderr = %q, want %q", stderr.String(), notice)
+		}
+		// The next up has nothing to swap and says nothing.
+		stderr.Reset()
+		if _, err := p.prepare(opts); err != nil {
+			t.Fatal(err)
+		}
+		if stderr.Len() != 0 {
+			t.Fatalf("second up printed %q", stderr.String())
+		}
+	})
+	t.Run("platform.json", func(t *testing.T) {
+		p, opts := objectKeyTestPulumi(t)
+		var stderr bytes.Buffer
+		p.Stderr = &stderr
+		writePlatformConfig(t, &p, `{"tenantHostImage":"`+old+`"}`)
+		if _, err := p.prepare(opts); err != nil {
+			t.Fatal(err)
+		}
+		if stderr.String() != notice {
+			t.Fatalf("stderr = %q, want %q", stderr.String(), notice)
+		}
+		if got := stackConfigValue(t, p.Directory, "tenantHostImage"); got != DefaultTenantHostImage {
+			t.Fatal(got)
+		}
+	})
+	t.Run("other images are not announced", func(t *testing.T) {
+		for _, image := range []string{"", DefaultTenantHostImage, "example/wash:local", "ghcr.io/di-framework/wash@" + oldHostDigest} {
+			p, opts := objectKeyTestPulumi(t)
+			var stderr bytes.Buffer
+			p.Stderr = &stderr
+			if image != "" {
+				writePlatformConfig(t, &p, `{"tenantHostImage":"`+image+`"}`)
+			}
+			if _, err := p.prepare(opts); err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(stderr.String(), "notice:") {
+				t.Fatalf("%q: stderr = %q", image, stderr.String())
+			}
+		}
+	})
 }
 
 const insecureRegistriesJSON = `["examples-registry.wasmcloud.svc.cluster.local:5000","registry.local"]`
