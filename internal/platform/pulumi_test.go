@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -173,6 +174,161 @@ func TestPlatformConfigPassesEgressDestinations(t *testing.T) {
 	os.WriteFile(configPath, []byte(`{"egressAllowed":[]}`), 0600)
 	p.ConfigFile = configPath
 	if _, err := p.prepare(opts); err == nil || !strings.Contains(err.Error(), `unsupported platform config key "egressAllowed"`) {
+		t.Fatal(err)
+	}
+}
+
+// objectKeyTestPulumi returns a Pulumi whose commands and ownership are stubbed,
+// so Up only writes the project files.
+func objectKeyTestPulumi(t *testing.T) (Pulumi, InstallOptions) {
+	t.Helper()
+	dir := t.TempDir()
+	p := Pulumi{Directory: dir, Kubeconfig: "/tmp/kube", Namespace: "wasmcloud", Server: "https://example.test"}
+	p.run = func(context.Context, string, []string, string, []string) ([]byte, error) { return nil, nil }
+	p.ownership = func(context.Context, projectIdentity, bool) error { return nil }
+	return p, InstallOptions{Release: "wasmcloud", Chart: DefaultChart, ChartVersion: DefaultChartVersion, Timeout: time.Minute}
+}
+
+func writePlatformConfig(t *testing.T, p *Pulumi, body string) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "platform.json")
+	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+	p.ConfigFile = path
+}
+
+func stackConfigValue(t *testing.T, dir, key string) any {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(dir, "Pulumi.dev.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stack struct {
+		Config map[string]any `json:"config"`
+	}
+	if err := json.Unmarshal(b, &stack); err != nil {
+		t.Fatal(err)
+	}
+	return stack.Config["di-framework-kube:"+key]
+}
+
+func decodeJSON(t *testing.T, s string) any {
+	t.Helper()
+	var v any
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+const routeAliasesJSON = `{"identity.identity":"identity.identity-pg","console.console":"console.console-v2"}`
+
+const tenantAuthJSON = `{"image":"ghcr.io/di-framework/tenant-auth@sha256:7a57d4241e876ef253bd50bd921a2a890af9dabc49842e8de465038a57b08f08","issuer":"http://stub-oidc.pg-stub-oidc.svc.cluster.local","oauthClient":{"id":"pgprove-console","secretName":"tenant-auth-oauth"},"issuerUpstreamPodPort":8080,"registry":{"component":"ghcr.io/di-framework/oci-registry:1"}}`
+
+func TestPlatformConfigPassesRouteAliases(t *testing.T) {
+	p, opts := objectKeyTestPulumi(t)
+	writePlatformConfig(t, &p, `{"tenants":[],"routeAliases":`+routeAliasesJSON+`}`)
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	// Written as a JSON object, the form config.getObject('routeAliases') reads.
+	got := stackConfigValue(t, p.Directory, "routeAliases")
+	if _, ok := got.(map[string]any); !ok {
+		t.Fatalf("routeAliases written as %T, want a JSON object: %v", got, got)
+	}
+	if want := decodeJSON(t, routeAliasesJSON); !reflect.DeepEqual(got, want) {
+		t.Fatalf("routeAliases = %v, want %v", got, want)
+	}
+}
+
+func TestPlatformConfigPassesTenantAuth(t *testing.T) {
+	p, opts := objectKeyTestPulumi(t)
+	writePlatformConfig(t, &p, `{"tenants":[],"tenantAuth":`+tenantAuthJSON+`}`)
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	got := stackConfigValue(t, p.Directory, "tenantAuth")
+	if _, ok := got.(map[string]any); !ok {
+		t.Fatalf("tenantAuth written as %T, want a JSON object: %v", got, got)
+	}
+	if want := decodeJSON(t, tenantAuthJSON); !reflect.DeepEqual(got, want) {
+		t.Fatalf("tenantAuth = %v, want %v", got, want)
+	}
+}
+
+func TestSecondUpKeepsRouteAliasesAndTenantAuth(t *testing.T) {
+	p, opts := objectKeyTestPulumi(t)
+	platformJSON := `{"tenants":[{"name":"alpha"}],"routeAliases":` + routeAliasesJSON + `,"tenantAuth":` + tenantAuthJSON + `}`
+	writePlatformConfig(t, &p, platformJSON)
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	check := func(stage string) {
+		t.Helper()
+		if got, want := stackConfigValue(t, p.Directory, "routeAliases"), decodeJSON(t, routeAliasesJSON); !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s: routeAliases = %v, want %v", stage, got, want)
+		}
+		if got, want := stackConfigValue(t, p.Directory, "tenantAuth"), decodeJSON(t, tenantAuthJSON); !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s: tenantAuth = %v, want %v", stage, got, want)
+		}
+	}
+	check("first up")
+	// Second up with the same platform.json.
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	check("second up with --platform-config")
+	// Another up without --platform-config preserves the saved declarations.
+	p.ConfigFile = ""
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	check("up without --platform-config")
+	// A platform.json without routeAliases removes the alias (cutover rollback).
+	writePlatformConfig(t, &p, `{"tenants":[{"name":"alpha"}],"tenantAuth":`+tenantAuthJSON+`}`)
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if got := stackConfigValue(t, p.Directory, "routeAliases"); got != nil {
+		t.Fatalf("routeAliases kept after removal from platform.json: %v", got)
+	}
+}
+
+func TestRejectsMalformedRouteAliases(t *testing.T) {
+	for _, tc := range []struct {
+		name, value, want string
+	}{
+		{"string", `"identity.identity=identity.identity-pg"`, "platform config routeAliases must be a JSON object mapping route names to route names, got a string"},
+		{"array", `["identity.identity"]`, "platform config routeAliases must be a JSON object mapping route names to route names, got an array"},
+		{"null", `null`, "platform config routeAliases must be a JSON object mapping route names to route names, got null"},
+		{"number value", `{"identity.identity":1}`, `platform config routeAliases["identity.identity"] must be a non-empty string, got a number`},
+		{"object value", `{"identity.identity":{"to":"identity.identity-pg"}}`, `platform config routeAliases["identity.identity"] must be a non-empty string, got an object`},
+		{"empty value", `{"identity.identity":""}`, `platform config routeAliases["identity.identity"] must be a non-empty string, got an empty string`},
+		{"empty name", `{"":"identity.identity-pg"}`, "platform config routeAliases has an empty route name"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, opts := objectKeyTestPulumi(t)
+			p.run = func(context.Context, string, []string, string, []string) ([]byte, error) {
+				t.Fatal("ran a command with malformed routeAliases")
+				return nil, nil
+			}
+			writePlatformConfig(t, &p, `{"routeAliases":`+tc.value+`}`)
+			err := p.Up(context.Background(), opts)
+			if err == nil || err.Error() != tc.want {
+				t.Fatalf("error = %v, want %q", err, tc.want)
+			}
+			if _, statErr := os.Stat(filepath.Join(p.Directory, "Pulumi.dev.yaml")); !errors.Is(statErr, os.ErrNotExist) {
+				t.Fatal("wrote the stack config despite malformed routeAliases")
+			}
+		})
+	}
+}
+
+func TestRejectsNonObjectTenantAuth(t *testing.T) {
+	p, opts := objectKeyTestPulumi(t)
+	writePlatformConfig(t, &p, `{"tenantAuth":"ghcr.io/di-framework/tenant-auth:1"}`)
+	if _, err := p.prepare(opts); err == nil || err.Error() != "platform config tenantAuth must be a JSON object, got a string" {
 		t.Fatal(err)
 	}
 }

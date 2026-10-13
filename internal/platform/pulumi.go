@@ -54,6 +54,55 @@ var platformConfigKeys = []string{
 	"networkPolicyEngine",
 	"storageRoot",
 	"egressAllowedDestinations",
+	"routeAliases",
+	"tenantAuth",
+}
+
+// validatePlatformConfigValue checks the shape of object-valued keys the platform
+// reads with config.getObject. Values pass through to the stack config unchanged.
+func validatePlatformConfigValue(key string, value any) error {
+	switch key {
+	case "routeAliases":
+		aliases, ok := value.(map[string]any)
+		if !ok {
+			return fmt.Errorf("platform config routeAliases must be a JSON object mapping route names to route names, got %s", jsonKind(value))
+		}
+		for name, target := range aliases {
+			if name == "" {
+				return errors.New("platform config routeAliases has an empty route name")
+			}
+			if s, ok := target.(string); !ok || s == "" {
+				return fmt.Errorf("platform config routeAliases[%q] must be a non-empty string, got %s", name, jsonKind(target))
+			}
+		}
+	case "tenantAuth":
+		if _, ok := value.(map[string]any); !ok {
+			return fmt.Errorf("platform config tenantAuth must be a JSON object, got %s", jsonKind(value))
+		}
+	}
+	return nil
+}
+
+func jsonKind(value any) string {
+	switch v := value.(type) {
+	case nil:
+		return "null"
+	case map[string]any:
+		return "an object"
+	case []any:
+		return "an array"
+	case string:
+		if v == "" {
+			return "an empty string"
+		}
+		return "a string"
+	case float64:
+		return "a number"
+	case bool:
+		return "a boolean"
+	default:
+		return fmt.Sprintf("%T", value)
+	}
 }
 
 const platformProgram = `export { schemaVersion, kubeconfig, namespace, endpoints, tenants, users } from '@di-framework/platform/existing';
@@ -204,9 +253,12 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 		if config == nil {
 			return identity, errors.New("platform config must be a JSON object")
 		}
-		for k := range config {
+		for k, v := range config {
 			if !slices.Contains(platformConfigKeys, k) {
 				return identity, fmt.Errorf("unsupported platform config key %q", k)
+			}
+			if err := validatePlatformConfigValue(k, v); err != nil {
+				return identity, err
 			}
 		}
 	}
