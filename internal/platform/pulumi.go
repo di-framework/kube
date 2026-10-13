@@ -25,20 +25,48 @@ import (
 
 // DefaultPlatformPackage is the shared platform release up installs. Override it with
 // --platform-package @di-framework/platform@<version> or file:<absolute tarball path>.
-const DefaultPlatformPackage = "@di-framework/platform@6.0.2"
+const DefaultPlatformPackage = "@di-framework/platform@6.0.13"
 
-// DefaultTenantHostImage is the published wash image with wasi-tls. The tag moves
+// DefaultTenantHostImage is the published wash image with wasi-tls and patch 0002
+// (--insecure-registry), the platform's own DEFAULT_HOST_IMAGE at v6.0.13. The tag moves
 // on the next publish; this digest is the multi-arch index. A platform-config
 // tenantHostImage replaces it.
-const DefaultTenantHostImage = "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669"
+const DefaultTenantHostImage = "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad"
 
 // previousTenantHostImages are values this CLI used to write as
 // DefaultTenantHostImage. A saved copy is the old default, not a user choice,
 // so the next up replaces it. Add the previous constant here when the pin changes.
-var previousTenantHostImages []string
+var previousTenantHostImages = []string{
+	// Before patch 0002; platform 6.0.11+ refuses it with insecureRegistries.
+	"ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669",
+}
 
-func applyTenantHostImage(config map[string]any) {
+// preAllowlistHostImageDigests mirrors the platform's PRE_ALLOWLIST_HOST_IMAGE_DIGESTS
+// (insecure-registries.ts): tenant host images built before wash patch 0002, which
+// platform 6.0.11 and later refuse when tenant hosts get an insecureRegistries allowlist.
+var preAllowlistHostImageDigests = []string{
+	"sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669",
+}
+
+// preAllowlistHostImage reports whether image ends in a digest the platform refuses with
+// an allowlist, using the platform's rule (the reference ends with "@" + digest).
+func preAllowlistHostImage(image string) bool {
+	for _, digest := range preAllowlistHostImageDigests {
+		if strings.HasSuffix(image, "@"+digest) {
+			return true
+		}
+	}
+	return false
+}
+
+// applyTenantHostImage fills an unset tenantHostImage with the default and moves a
+// previous CLI default, saved or set in platform.json, to the current one. A move rolls
+// every tenant host, so it is announced on w.
+func applyTenantHostImage(w io.Writer, config map[string]any) {
 	image, _ := config["tenantHostImage"].(string)
+	if slices.Contains(previousTenantHostImages, image) {
+		fmt.Fprintf(w, "notice: tenantHostImage %s is an earlier di-framework-kube default; replacing it with %s, which rolls every tenant host\n", image, DefaultTenantHostImage)
+	}
 	if image == "" || image == DefaultTenantHostImage || slices.Contains(previousTenantHostImages, image) {
 		config["tenantHostImage"] = DefaultTenantHostImage
 	}
@@ -152,16 +180,17 @@ func insecureRegistriesWithoutSwitch(value any, allow, kept bool) error {
 	return errors.New("platform config insecureRegistries needs --allow-insecure-registries on every up; without it the platform refuses the list")
 }
 
-// warnDefaultHostImageWithAllowlist warns, without refusing, when tenant hosts get an
-// insecureRegistries allowlist on this CLI's default tenant host image. That image predates
-// wash patch 0002, and @di-framework/platform 6.0.11 and later refuse the pairing; older
-// packages ignore insecureRegistries, so whether it fails depends on --platform-package.
-func warnDefaultHostImageWithAllowlist(w io.Writer, insecureRegistries any, tenantHostImage any) {
+// warnPreAllowlistHostImage warns, without refusing, when tenant hosts get an
+// insecureRegistries allowlist on a tenant host image built before wash patch 0002.
+// @di-framework/platform 6.0.11 and later refuse that pairing; older packages ignore
+// insecureRegistries, so whether it fails depends on --platform-package.
+func warnPreAllowlistHostImage(w io.Writer, insecureRegistries any, tenantHostImage any) {
 	entries, ok := insecureRegistries.([]any)
-	if !ok || len(entries) == 0 || tenantHostImage != DefaultTenantHostImage {
+	image, _ := tenantHostImage.(string)
+	if !ok || len(entries) == 0 || !preAllowlistHostImage(image) {
 		return
 	}
-	fmt.Fprintf(w, "warning: insecureRegistries is set and tenantHostImage is this CLI's default %s, which predates wash patch 0002. @di-framework/platform 6.0.11 and later refuse insecureRegistries with that image during pulumi up; set tenantHostImage in --platform-config to an image built with patch 0002.\n", DefaultTenantHostImage)
+	fmt.Fprintf(w, "warning: insecureRegistries is set and tenantHostImage %s predates wash patch 0002. @di-framework/platform 6.0.11 and later refuse insecureRegistries with that image during pulumi up; set tenantHostImage in --platform-config to an image built with patch 0002, or unset it to use %s.\n", image, DefaultTenantHostImage)
 }
 
 // validateKeptValue checks a value of key kept from a previous up or set by hand with
@@ -417,8 +446,8 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 		}
 		values = merge(values, value)
 	}
-	applyTenantHostImage(config)
-	warnDefaultHostImageWithAllowlist(writerOrDiscard(p.Stderr), insecureRegistries, config["tenantHostImage"])
+	applyTenantHostImage(writerOrDiscard(p.Stderr), config)
+	warnPreAllowlistHostImage(writerOrDiscard(p.Stderr), insecureRegistries, config["tenantHostImage"])
 	if _, ok := config["networkPolicyEngine"]; !ok {
 		engine := p.NetworkPolicyEngine
 		if engine == "" {
