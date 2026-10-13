@@ -198,7 +198,7 @@ A fresh managed instance with one tenant takes 8–9 minutes to come up on a
 laptop, most of it image pulls and the first tenant host rollout.
 
 Install Node.js, npm, and the Pulumi CLI before running `up`. By default the CLI
-installs the pinned `@di-framework/platform@6.0.2` from npm:
+installs the pinned `@di-framework/platform@6.0.13` from npm:
 
 ```sh
 di-framework-kube up
@@ -207,7 +207,7 @@ di-framework-kube up
 Select another published version with `--platform-package`:
 
 ```sh
-di-framework-kube up --platform-package @di-framework/platform@6.0.3
+di-framework-kube up --platform-package @di-framework/platform@6.0.12
 ```
 
 The pin moves with this CLI's releases (`DefaultPlatformPackage` in
@@ -225,7 +225,10 @@ Use `--platform-config /absolute/path/platform.json` for tenant declarations:
 Updates without this flag preserve existing tenant/user declarations. Supplying
 it replaces those declarations. Unless the file sets `tenantHostImage`, `up` pins
 the tenant host to
-`ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669`.
+`ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad`,
+the platform's own default: wash 2.8.0 with wasi-tls and patch 0002 (`--insecure-registry`).
+A saved `tenantHostImage` equal to an earlier CLI default (`...@sha256:ee89fd4b...`) is
+replaced by the current default on the next `up`.
 The file also accepts `tenantHostImagePullPolicy`, `storageRoot`, `networkPolicyEngine` (`existing` or `kube-router`),
 and `egressAllowedDestinations`, the `host:port` / `*.suffix:port` entries the platform's
 `egress-public` class approves for tenant egress (default `[]`, which approves nothing).
@@ -251,10 +254,10 @@ Three more keys pass through unchanged:
   no scheme or path), also for a list kept from a previous `up` or set by hand with
   `pulumi config set --path 'insecureRegistries[0]' <host>`. The exact `host[:port]` grammar is
   checked by the platform during `pulumi up`. The platform also refuses a non-empty list with a
-  tenant host image built before wash patch 0002 (6.0.11 and later), which includes this CLI's
-  current default `tenantHostImage`; set `tenantHostImage` to an image built with 0002 until the
-  default moves. `up` prints a warning for that pairing but does not refuse it, since older
-  platform packages ignore `insecureRegistries`.
+  tenant host image built before wash patch 0002 (6.0.11 and later). This CLI's default
+  `tenantHostImage` is a patch-0002 build; if you set your own, `up` prints a warning when it
+  ends in a digest the platform refuses, but does not refuse it, since older platform packages
+  ignore `insecureRegistries`.
 - `backingServiceClasses` (a JSON array of class objects) and `seedDefaultBackingClasses`
   (a boolean): the platform's backing service class overrides and default seeding. The platform
   validates their contents.
@@ -305,14 +308,14 @@ npm pack --pack-destination /tmp
 # In di-framework-kube:
 go run ./cmd/di-framework-kube up --name shared-test \
   --http-port 28089 \
-  --platform-package file:/tmp/di-framework-platform-6.0.2.tgz
+  --platform-package file:/tmp/di-framework-platform-6.0.13.tgz
 ```
 
 Use the filename produced by `npm pack` if the package version differs. `up` copies
 the tarball into the project as `vendor/platform-<sha256>.tgz` and depends on that
 copy, so rebuilding the tarball at the same path and version and rerunning `up`
 installs the new build. To check which build is installed, compare
-`shasum -a 256 /tmp/di-framework-platform-6.0.2.tgz` with the `vendor/` file name
+`shasum -a 256 /tmp/di-framework-platform-6.0.13.tgz` with the `vendor/` file name
 under `<state-dir>/<name>/platform`.
 
 ### Known limitations
