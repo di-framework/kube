@@ -299,18 +299,15 @@ func TestRejectsMalformedRouteAliases(t *testing.T) {
 	for _, tc := range []struct {
 		name, value, want string
 	}{
-		{"string", `"identity.identity=identity.identity-pg"`, "platform config routeAliases must be a JSON object mapping route names to route names, got a string"},
-		{"array", `["identity.identity"]`, "platform config routeAliases must be a JSON object mapping route names to route names, got an array"},
-		{"null", `null`, "platform config routeAliases must be a JSON object mapping route names to route names, got null"},
-		{"number value", `{"identity.identity":1}`, `platform config routeAliases["identity.identity"] must be a non-empty string, got a number`},
-		{"object value", `{"identity.identity":{"to":"identity.identity-pg"}}`, `platform config routeAliases["identity.identity"] must be a non-empty string, got an object`},
-		{"empty value", `{"identity.identity":""}`, `platform config routeAliases["identity.identity"] must be a non-empty string, got an empty string`},
-		{"empty name", `{"":"identity.identity-pg"}`, "platform config routeAliases has an empty route name"},
-		{"uppercase name", `{"Identity.identity":"identity.identity-pg"}`, `platform config routeAliases route name "Identity.identity" must be <label>.<label> with lowercase DNS-1123 labels (reserved names and alias chains are checked by the platform during pulumi up)`},
-		{"single-label name", `{"identity":"identity.identity-pg"}`, `platform config routeAliases route name "identity" must be <label>.<label> with lowercase DNS-1123 labels (reserved names and alias chains are checked by the platform during pulumi up)`},
-		{"three-label name", `{"a.b.c":"identity.identity-pg"}`, `platform config routeAliases route name "a.b.c" must be <label>.<label> with lowercase DNS-1123 labels (reserved names and alias chains are checked by the platform during pulumi up)`},
-		{"bad value label", `{"identity.identity":"identity.identity_pg"}`, `platform config routeAliases["identity.identity"] = "identity.identity_pg" must be <label>.<label> with lowercase DNS-1123 labels (reserved names and alias chains are checked by the platform during pulumi up)`},
-		{"value label ends with hyphen", `{"identity.identity":"identity-.identity-pg"}`, `platform config routeAliases["identity.identity"] = "identity-.identity-pg" must be <label>.<label> with lowercase DNS-1123 labels (reserved names and alias chains are checked by the platform during pulumi up)`},
+		{"string", `"identity.identity=identity.identity-pg"`, "platform config routeAliases must be a JSON object mapping route names to route names, got a string (route grammar, reserved names and alias chains are checked by the platform during pulumi up)"},
+		{"array", `["identity.identity"]`, "platform config routeAliases must be a JSON object mapping route names to route names, got an array (route grammar, reserved names and alias chains are checked by the platform during pulumi up)"},
+		{"null", `null`, "platform config routeAliases must be a JSON object mapping route names to route names, got null (route grammar, reserved names and alias chains are checked by the platform during pulumi up)"},
+		{"number value", `{"identity.identity":1}`, `platform config routeAliases["identity.identity"] must be a non-empty string, got a number (route grammar, reserved names and alias chains are checked by the platform during pulumi up)`},
+		{"object value", `{"identity.identity":{"to":"identity.identity-pg"}}`, `platform config routeAliases["identity.identity"] must be a non-empty string, got an object (route grammar, reserved names and alias chains are checked by the platform during pulumi up)`},
+		{"empty value", `{"identity.identity":""}`, `platform config routeAliases["identity.identity"] must be a non-empty string, got an empty string (route grammar, reserved names and alias chains are checked by the platform during pulumi up)`},
+		{"empty name", `{"":"identity.identity-pg"}`, "platform config routeAliases has an empty route name (route grammar, reserved names and alias chains are checked by the platform during pulumi up)"},
+		{"space in name", `{"identity .identity":"identity.identity-pg"}`, `platform config routeAliases route name "identity .identity" must not contain whitespace (route grammar, reserved names and alias chains are checked by the platform during pulumi up)`},
+		{"newline in value", `{"identity.identity":"identity.identity-pg\n"}`, `platform config routeAliases["identity.identity"] = "identity.identity-pg\n" must not contain whitespace (route grammar, reserved names and alias chains are checked by the platform during pulumi up)`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p, opts := objectKeyTestPulumi(t)
@@ -414,12 +411,34 @@ func TestUpKeepsHandSetYAMLTenantAuth(t *testing.T) {
 	}
 }
 
+func TestAcceptsPlatformRouteGrammar(t *testing.T) {
+	// The platform owns route grammar; up must not be stricter than it.
+	aliases := `{"api.v2.alpha":"api.v3.alpha","my_app.alpha":"my_app2.alpha","Identity.Identity":"identity.identity-pg","a.b.c":"x.y.z"}`
+	p, opts := objectKeyTestPulumi(t)
+	writePlatformConfig(t, &p, `{"routeAliases":`+aliases+`}`)
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := stackConfigValue(t, p.Directory, "routeAliases"), decodeJSON(t, aliases); !reflect.DeepEqual(got, want) {
+		t.Fatalf("routeAliases = %v, want %v", got, want)
+	}
+	// The same aliases kept in the stack config pass an up without --platform-config.
+	p.ConfigFile = ""
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := stackConfigValue(t, p.Directory, "routeAliases"), decodeJSON(t, aliases); !reflect.DeepEqual(got, want) {
+		t.Fatalf("kept routeAliases = %v, want %v", got, want)
+	}
+}
+
 func TestUpValidatesKeptRouteAliases(t *testing.T) {
 	for _, tc := range []struct {
 		name, saved, want string
 	}{
 		{"JSON string form is accepted", `"{\"identity.identity\":\"identity.identity-pg\"}"`, ""},
-		{"bad label", `{"identity.identity":"Identity.PG"}`, `saved stack config (Pulumi.dev.yaml): platform config routeAliases["identity.identity"] = "Identity.PG" must be <label>.<label> with lowercase DNS-1123 labels (reserved names and alias chains are checked by the platform during pulumi up); fix it there or pass --platform-config`},
+		{"non-string value", `{"identity.identity":1}`, `saved stack config (Pulumi.dev.yaml): platform config routeAliases["identity.identity"] must be a non-empty string, got a number (route grammar, reserved names and alias chains are checked by the platform during pulumi up); fix it there or pass --platform-config`},
+		{"secret", `{"secure":"v1:c2VjcmV0"}`, "saved stack config (Pulumi.dev.yaml): routeAliases must not be a secret; set it without --secret or pass --platform-config"},
 		{"non-JSON string", `"identity.identity=identity.identity-pg"`, "saved stack config routeAliases is a string that is not a JSON object"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

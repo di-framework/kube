@@ -229,11 +229,12 @@ Two object-valued keys pass through to the stack config unchanged, as JSON objec
 platform reads with `config.getObject`:
 
 - `routeAliases`: administrator gateway route aliases, route name to route name, for example
-  `{"identity.identity": "identity.identity-pg"}`. Both sides must be `<label>.<label>`, each a
-  lowercase DNS-1123 label. `up` checks that format before it writes anything, also for aliases
-  kept from a previous `up` or set by hand. The platform checks the deeper rules (reserved names,
-  alias chains) during `pulumi up`. Removing an alias from the file and running `up` again
-  removes it from the stack.
+  `{"identity.identity": "identity.identity-pg"}`. `up` checks only the shape: an object
+  whose keys and values are non-empty strings without whitespace. It checks values from the file
+  before it writes anything, and values kept from a previous `up` or set by hand (not as a
+  secret) before it writes the stack config. Route grammar, reserved names and alias chains are
+  checked by the platform during `pulumi up`. Removing an alias from the file and running `up`
+  again removes it from the stack.
 - `tenantAuth`: the tenant auth controller and registry settings the platform package documents.
 Managed Kubesolo defaults to the shared package's policy-only kube-router
 controller; external clusters default to their existing policy engine. `--values` still accepts administrator Helm values;

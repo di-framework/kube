@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"sigs.k8s.io/yaml"
 )
@@ -58,11 +59,9 @@ var platformConfigKeys = []string{
 	"tenantAuth",
 }
 
-// routeNamePattern is the form of a gateway route name: <label>.<label>, each a
-// lowercase DNS-1123 label. Reserved names and alias chains are left to the platform.
-var routeNamePattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`)
-
-const routeAliasRulesNote = "reserved names and alias chains are checked by the platform during pulumi up"
+// routeAliasRulesNote ends every routeAliases error. Only the shape is checked here:
+// the platform owns the route grammar and checks it during pulumi up.
+const routeAliasRulesNote = "route grammar, reserved names and alias chains are checked by the platform during pulumi up"
 
 // validatePlatformConfigValue checks the shape of object-valued keys the platform
 // reads with config.getObject. Values pass through to the stack config unchanged.
@@ -71,21 +70,21 @@ func validatePlatformConfigValue(key string, value any) error {
 	case "routeAliases":
 		aliases, ok := value.(map[string]any)
 		if !ok {
-			return fmt.Errorf("platform config routeAliases must be a JSON object mapping route names to route names, got %s", jsonKind(value))
+			return fmt.Errorf("platform config routeAliases must be a JSON object mapping route names to route names, got %s (%s)", jsonKind(value), routeAliasRulesNote)
 		}
 		for name, target := range aliases {
 			if name == "" {
-				return errors.New("platform config routeAliases has an empty route name")
+				return fmt.Errorf("platform config routeAliases has an empty route name (%s)", routeAliasRulesNote)
 			}
-			if !routeNamePattern.MatchString(name) {
-				return fmt.Errorf("platform config routeAliases route name %q must be <label>.<label> with lowercase DNS-1123 labels (%s)", name, routeAliasRulesNote)
+			if strings.IndexFunc(name, unicode.IsSpace) >= 0 {
+				return fmt.Errorf("platform config routeAliases route name %q must not contain whitespace (%s)", name, routeAliasRulesNote)
 			}
 			s, ok := target.(string)
 			if !ok || s == "" {
-				return fmt.Errorf("platform config routeAliases[%q] must be a non-empty string, got %s", name, jsonKind(target))
+				return fmt.Errorf("platform config routeAliases[%q] must be a non-empty string, got %s (%s)", name, jsonKind(target), routeAliasRulesNote)
 			}
-			if !routeNamePattern.MatchString(s) {
-				return fmt.Errorf("platform config routeAliases[%q] = %q must be <label>.<label> with lowercase DNS-1123 labels (%s)", name, s, routeAliasRulesNote)
+			if strings.IndexFunc(s, unicode.IsSpace) >= 0 {
+				return fmt.Errorf("platform config routeAliases[%q] = %q must not contain whitespace (%s)", name, s, routeAliasRulesNote)
 			}
 		}
 	case "tenantAuth":
@@ -100,6 +99,13 @@ func validatePlatformConfigValue(key string, value any) error {
 // with pulumi config set. Without --path, Pulumi stores the object as a JSON string,
 // which config.getObject also parses, so that form is decoded before the check.
 func validateKeptRouteAliases(value any) error {
+	// pulumi config set --secret stores {"secure": "v1:..."}; the platform reads
+	// routeAliases as plain route names, so a secret cannot be validated or used.
+	if object, ok := value.(map[string]any); ok && len(object) == 1 {
+		if _, secret := object["secure"]; secret {
+			return errors.New("saved stack config (Pulumi.dev.yaml): routeAliases must not be a secret; set it without --secret or pass --platform-config")
+		}
+	}
 	if text, ok := value.(string); ok {
 		var decoded any
 		if err := json.Unmarshal([]byte(text), &decoded); err != nil {
