@@ -57,7 +57,18 @@ var platformConfigKeys = []string{
 	"egressAllowedDestinations",
 	"routeAliases",
 	"tenantAuth",
+	"insecureRegistries",
+	"backingServiceClasses",
+	"seedDefaultBackingClasses",
 }
+
+// keptValidatedKeys are checked again when an up without --platform-config keeps
+// them, because they are also set by hand with pulumi config set.
+var keptValidatedKeys = []string{"routeAliases", "insecureRegistries"}
+
+// insecureRegistryRulesNote ends every insecureRegistries error. Only the shape is
+// checked here: the platform owns the host[:port] grammar.
+const insecureRegistryRulesNote = "the exact host[:port] grammar is checked by the platform during pulumi up"
 
 // routeAliasRulesNote ends every routeAliases error. Only the shape is checked here:
 // the platform owns the route grammar and checks it during pulumi up.
@@ -91,32 +102,92 @@ func validatePlatformConfigValue(key string, value any) error {
 		if _, ok := value.(map[string]any); !ok {
 			return fmt.Errorf("platform config tenantAuth must be a JSON object, got %s", jsonKind(value))
 		}
+	case "insecureRegistries":
+		entries, ok := value.([]any)
+		if !ok {
+			return fmt.Errorf("platform config insecureRegistries must be a JSON array of registry host[:port] strings, got %s (%s)", jsonKind(value), insecureRegistryRulesNote)
+		}
+		for i, entry := range entries {
+			s, ok := entry.(string)
+			if !ok || s == "" {
+				return fmt.Errorf("platform config insecureRegistries[%d] must be a non-empty string, got %s (%s)", i, jsonKind(entry), insecureRegistryRulesNote)
+			}
+			if strings.IndexFunc(s, unicode.IsSpace) >= 0 {
+				return fmt.Errorf("platform config insecureRegistries[%d] = %q must not contain whitespace (%s)", i, s, insecureRegistryRulesNote)
+			}
+			if strings.Contains(s, "://") || strings.Contains(s, "/") {
+				return fmt.Errorf("platform config insecureRegistries[%d] = %q must be a registry host[:port] as workload references spell it, without a scheme or path (%s)", i, s, insecureRegistryRulesNote)
+			}
+		}
+	case "backingServiceClasses":
+		classes, ok := value.([]any)
+		if !ok {
+			return fmt.Errorf("platform config backingServiceClasses must be a JSON array of class objects, got %s", jsonKind(value))
+		}
+		for i, class := range classes {
+			if _, ok := class.(map[string]any); !ok {
+				return fmt.Errorf("platform config backingServiceClasses[%d] must be a JSON object, got %s", i, jsonKind(class))
+			}
+		}
+	case "seedDefaultBackingClasses":
+		if _, ok := value.(bool); !ok {
+			return fmt.Errorf("platform config seedDefaultBackingClasses must be a boolean, got %s", jsonKind(value))
+		}
 	}
 	return nil
 }
 
-// validateKeptRouteAliases checks routeAliases kept from a previous up or set by hand
-// with pulumi config set. Without --path, Pulumi stores the object as a JSON string,
-// which config.getObject also parses, so that form is decoded before the check.
-func validateKeptRouteAliases(value any) error {
-	// pulumi config set --secret stores {"secure": "v1:..."}; the platform reads
-	// routeAliases as plain route names, so a secret cannot be validated or used.
+// insecureRegistriesWithoutSwitch reports a non-empty insecureRegistries when
+// --allow-insecure-registries is off. The platform refuses that combination
+// ("insecureRegistries requires insecureRegistry: true"), only after the claim and npm install.
+// kept is true when the list comes from the saved stack config rather than --platform-config.
+func insecureRegistriesWithoutSwitch(value any, allow, kept bool) error {
+	entries, ok := value.([]any)
+	if !ok || len(entries) == 0 || allow {
+		return nil
+	}
+	if kept {
+		return errors.New("saved stack config (Pulumi.dev.yaml) insecureRegistries needs --allow-insecure-registries on every up; without it the platform refuses the list. Pass the flag, remove insecureRegistries from Pulumi.dev.yaml, or pass a --platform-config without it")
+	}
+	return errors.New("platform config insecureRegistries needs --allow-insecure-registries on every up; without it the platform refuses the list")
+}
+
+// warnDefaultHostImageWithAllowlist warns, without refusing, when tenant hosts get an
+// insecureRegistries allowlist on this CLI's default tenant host image. That image predates
+// wash patch 0002, and @di-framework/platform 6.0.11 and later refuse the pairing; older
+// packages ignore insecureRegistries, so whether it fails depends on --platform-package.
+func warnDefaultHostImageWithAllowlist(w io.Writer, insecureRegistries any, tenantHostImage any) {
+	entries, ok := insecureRegistries.([]any)
+	if !ok || len(entries) == 0 || tenantHostImage != DefaultTenantHostImage {
+		return
+	}
+	fmt.Fprintf(w, "warning: insecureRegistries is set and tenantHostImage is this CLI's default %s, which predates wash patch 0002. @di-framework/platform 6.0.11 and later refuse insecureRegistries with that image during pulumi up; set tenantHostImage in --platform-config to an image built with patch 0002.\n", DefaultTenantHostImage)
+}
+
+// validateKeptValue checks a value of key kept from a previous up or set by hand with
+// pulumi config set, and returns it decoded. Without --path, Pulumi stores an object or
+// list as a JSON string, which config.getObject also parses, so that form is decoded
+// for the check; the stack config keeps the value unchanged.
+func validateKeptValue(key string, value any) (any, error) {
+	// pulumi config set --secret stores {"secure": "v1:..."}. Pulumi would decrypt it for
+	// the program, but up cannot shape-check it, and these keys hold no secret material,
+	// so up refuses a secret here as a policy.
 	if object, ok := value.(map[string]any); ok && len(object) == 1 {
 		if _, secret := object["secure"]; secret {
-			return errors.New("saved stack config (Pulumi.dev.yaml): routeAliases must not be a secret; set it without --secret or pass --platform-config")
+			return nil, fmt.Errorf("saved stack config (Pulumi.dev.yaml): %s must not be a secret; set it without --secret or pass --platform-config", key)
 		}
 	}
 	if text, ok := value.(string); ok {
 		var decoded any
 		if err := json.Unmarshal([]byte(text), &decoded); err != nil {
-			return fmt.Errorf("saved stack config routeAliases is a string that is not a JSON object: %w", err)
+			return nil, fmt.Errorf("saved stack config %s is a string that is not valid JSON: %w", key, err)
 		}
 		value = decoded
 	}
-	if err := validatePlatformConfigValue("routeAliases", value); err != nil {
-		return fmt.Errorf("saved stack config (Pulumi.dev.yaml): %w; fix it there or pass --platform-config", err)
+	if err := validatePlatformConfigValue(key, value); err != nil {
+		return nil, fmt.Errorf("saved stack config (Pulumi.dev.yaml): %w; fix it there or pass --platform-config", err)
 	}
-	return nil
+	return value, nil
 }
 
 // readPlatformConfig reads and validates a --platform-config file. It writes nothing.
@@ -238,6 +309,9 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 		if fileConfig, err = readPlatformConfig(p.ConfigFile); err != nil {
 			return projectIdentity{}, err
 		}
+		if err := insecureRegistriesWithoutSwitch(fileConfig["insecureRegistries"], options.AllowInsecureRegistries, false); err != nil {
+			return projectIdentity{}, err
+		}
 	}
 	if err := os.MkdirAll(p.Directory, 0700); err != nil {
 		return projectIdentity{}, err
@@ -309,12 +383,27 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return identity, err
 	}
+	insecureRegistries := config["insecureRegistries"]
 	if fileConfig != nil {
 		config = fileConfig
-	} else if aliases, ok := config["routeAliases"]; ok {
-		if err := validateKeptRouteAliases(aliases); err != nil {
-			return identity, err
+		insecureRegistries = config["insecureRegistries"]
+	} else {
+		for _, key := range keptValidatedKeys {
+			value, ok := config[key]
+			if !ok {
+				continue
+			}
+			decoded, err := validateKeptValue(key, value)
+			if err != nil {
+				return identity, err
+			}
+			if key == "insecureRegistries" {
+				insecureRegistries = decoded
+			}
 		}
+	}
+	if err := insecureRegistriesWithoutSwitch(insecureRegistries, options.AllowInsecureRegistries, fileConfig == nil); err != nil {
+		return identity, err
 	}
 	values := map[string]any{}
 	for _, file := range options.ValueFiles {
@@ -329,6 +418,7 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 		values = merge(values, value)
 	}
 	applyTenantHostImage(config)
+	warnDefaultHostImageWithAllowlist(writerOrDiscard(p.Stderr), insecureRegistries, config["tenantHostImage"])
 	if _, ok := config["networkPolicyEngine"]; !ok {
 		engine := p.NetworkPolicyEngine
 		if engine == "" {

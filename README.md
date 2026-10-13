@@ -150,8 +150,12 @@ The built-in profile disables the deprecated runtime gateway, creates one
 HTTP-enabled host, and applies the memory sizing used by DI Framework's
 JavaScript components.
 
-The insecure-registry switch changes all wasmCloud host registry connections;
-use it only for a trusted local development registry.
+The insecure-registry switch changes all registry connections of the shared
+wasmCloud host; use it only for a trusted local development registry. From
+`@di-framework/platform` 6.0.11 on, tenant hosts never get that blanket switch: with the
+switch set, they may pull over plain HTTP only from the exact `host[:port]` entries in the
+platform config's `insecureRegistries`. (The platform also allowlists its own registry when a
+program installs it; the program this CLI generates does not.)
 
 ## Build and release
 
@@ -236,6 +240,24 @@ platform reads with `config.getObject`:
   checked by the platform during `pulumi up`. Removing an alias from the file and running `up`
   again removes it from the stack.
 - `tenantAuth`: the tenant auth controller and registry settings the platform package documents.
+
+Three more keys pass through unchanged:
+
+- `insecureRegistries`: plain-HTTP registries tenant hosts may pull from, as a JSON array of
+  `host[:port]` strings spelled exactly as workload references spell them, for example
+  `["examples-registry.wasmcloud.svc.cluster.local:5000"]`. The platform requires
+  `--allow-insecure-registries` with a non-empty list, so pass that flag on every `up`; `up`
+  refuses the combination early. `up` checks only the shape (non-empty strings, no whitespace,
+  no scheme or path), also for a list kept from a previous `up` or set by hand with
+  `pulumi config set --path 'insecureRegistries[0]' <host>`. The exact `host[:port]` grammar is
+  checked by the platform during `pulumi up`. The platform also refuses a non-empty list with a
+  tenant host image built before wash patch 0002 (6.0.11 and later), which includes this CLI's
+  current default `tenantHostImage`; set `tenantHostImage` to an image built with 0002 until the
+  default moves. `up` prints a warning for that pairing but does not refuse it, since older
+  platform packages ignore `insecureRegistries`.
+- `backingServiceClasses` (a JSON array of class objects) and `seedDefaultBackingClasses`
+  (a boolean): the platform's backing service class overrides and default seeding. The platform
+  validates their contents.
 Managed Kubesolo defaults to the shared package's policy-only kube-router
 controller; external clusters default to their existing policy engine. `--values` still accepts administrator Helm values;
 shared-host and watched-namespace security settings cannot be overridden.

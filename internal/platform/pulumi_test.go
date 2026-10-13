@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -439,7 +440,7 @@ func TestUpValidatesKeptRouteAliases(t *testing.T) {
 		{"JSON string form is accepted", `"{\"identity.identity\":\"identity.identity-pg\"}"`, ""},
 		{"non-string value", `{"identity.identity":1}`, `saved stack config (Pulumi.dev.yaml): platform config routeAliases["identity.identity"] must be a non-empty string, got a number (route grammar, reserved names and alias chains are checked by the platform during pulumi up); fix it there or pass --platform-config`},
 		{"secret", `{"secure":"v1:c2VjcmV0"}`, "saved stack config (Pulumi.dev.yaml): routeAliases must not be a secret; set it without --secret or pass --platform-config"},
-		{"non-JSON string", `"identity.identity=identity.identity-pg"`, "saved stack config routeAliases is a string that is not a JSON object"},
+		{"non-JSON string", `"identity.identity=identity.identity-pg"`, "saved stack config routeAliases is a string that is not valid JSON"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p, opts := objectKeyTestPulumi(t)
@@ -606,5 +607,241 @@ func TestRebuiltTarballChangesDependency(t *testing.T) {
 func TestDefaultPlatformPackageIsPinned(t *testing.T) {
 	if !regexp.MustCompile(`^@di-framework/platform@6\.0\.[0-9]+$`).MatchString(DefaultPlatformPackage) {
 		t.Fatal(DefaultPlatformPackage)
+	}
+}
+
+const insecureRegistriesJSON = `["examples-registry.wasmcloud.svc.cluster.local:5000","registry.local"]`
+
+func insecureOpts(opts InstallOptions) InstallOptions {
+	opts.AllowInsecureRegistries = true
+	return opts
+}
+
+func TestPlatformConfigPassesInsecureRegistries(t *testing.T) {
+	p, opts := objectKeyTestPulumi(t)
+	opts = insecureOpts(opts)
+	writePlatformConfig(t, &p, `{"tenants":[],"insecureRegistries":`+insecureRegistriesJSON+`}`)
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	want := decodeJSON(t, insecureRegistriesJSON)
+	check := func(stage string) {
+		t.Helper()
+		got := stackConfigValue(t, p.Directory, "insecureRegistries")
+		if _, ok := got.([]any); !ok {
+			t.Fatalf("%s: insecureRegistries written as %T, want a JSON array: %v", stage, got, got)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s: insecureRegistries = %v, want %v", stage, got, want)
+		}
+		if stackConfigValue(t, p.Directory, "insecureRegistry") != true {
+			t.Fatalf("%s: insecureRegistry not set", stage)
+		}
+	}
+	check("first up")
+	// A second up without --platform-config keeps the list.
+	p.ConfigFile = ""
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	check("up without --platform-config")
+	// A platform.json without the key removes it, like the other declarations.
+	writePlatformConfig(t, &p, `{"tenants":[]}`)
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if got := stackConfigValue(t, p.Directory, "insecureRegistries"); got != nil {
+		t.Fatalf("insecureRegistries kept after removal from platform.json: %v", got)
+	}
+}
+
+// pgprove-style hand-set list: `pulumi config set --path 'insecureRegistries[0]' <host>` leaves YAML.
+const handSetInsecureRegistriesYAML = `encryptionsalt: v1:abc
+config:
+  di-framework-kube:tenants: []
+  di-framework-kube:insecureRegistries:
+    - examples-registry.wasmcloud.svc.cluster.local:5000
+    - registry.local
+`
+
+func TestUpKeepsHandSetYAMLInsecureRegistries(t *testing.T) {
+	p, opts := objectKeyTestPulumi(t)
+	if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(handSetInsecureRegistriesYAML), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Up(context.Background(), insecureOpts(opts)); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := stackConfigValue(t, p.Directory, "insecureRegistries"), decodeJSON(t, insecureRegistriesJSON); !reflect.DeepEqual(got, want) {
+		t.Fatalf("insecureRegistries = %v, want %v", got, want)
+	}
+}
+
+func TestRejectsMalformedInsecureRegistries(t *testing.T) {
+	note := " (the exact host[:port] grammar is checked by the platform during pulumi up)"
+	for _, tc := range []struct {
+		name, value, want string
+	}{
+		{"string", `"registry.local:5000"`, "platform config insecureRegistries must be a JSON array of registry host[:port] strings, got a string" + note},
+		{"object", `{"host":"registry.local"}`, "platform config insecureRegistries must be a JSON array of registry host[:port] strings, got an object" + note},
+		{"null", `null`, "platform config insecureRegistries must be a JSON array of registry host[:port] strings, got null" + note},
+		{"number entry", `[5000]`, "platform config insecureRegistries[0] must be a non-empty string, got a number" + note},
+		{"empty entry", `["registry.local",""]`, "platform config insecureRegistries[1] must be a non-empty string, got an empty string" + note},
+		{"whitespace", `["registry.local :5000"]`, `platform config insecureRegistries[0] = "registry.local :5000" must not contain whitespace` + note},
+		{"scheme", `["http://registry.local:5000"]`, `platform config insecureRegistries[0] = "http://registry.local:5000" must be a registry host[:port] as workload references spell it, without a scheme or path` + note},
+		{"path", `["registry.local:5000/components"]`, `platform config insecureRegistries[0] = "registry.local:5000/components" must be a registry host[:port] as workload references spell it, without a scheme or path` + note},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, opts := objectKeyTestPulumi(t)
+			p.run = func(context.Context, string, []string, string, []string) ([]byte, error) {
+				t.Fatal("ran a command with malformed insecureRegistries")
+				return nil, nil
+			}
+			writePlatformConfig(t, &p, `{"insecureRegistries":`+tc.value+`}`)
+			err := p.Up(context.Background(), insecureOpts(opts))
+			if err == nil || err.Error() != tc.want {
+				t.Fatalf("error = %v, want %q", err, tc.want)
+			}
+			assertProjectEmpty(t, p.Directory)
+		})
+	}
+}
+
+func TestInsecureRegistriesNeedsSwitch(t *testing.T) {
+	want := "platform config insecureRegistries needs --allow-insecure-registries on every up; without it the platform refuses the list"
+	t.Run("from platform.json", func(t *testing.T) {
+		p, opts := objectKeyTestPulumi(t)
+		writePlatformConfig(t, &p, `{"insecureRegistries":`+insecureRegistriesJSON+`}`)
+		if _, err := p.prepare(opts); err == nil || err.Error() != want {
+			t.Fatalf("error = %v, want %q", err, want)
+		}
+		assertProjectEmpty(t, p.Directory)
+	})
+	t.Run("kept", func(t *testing.T) {
+		p, opts := objectKeyTestPulumi(t)
+		if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(handSetInsecureRegistriesYAML), 0600); err != nil {
+			t.Fatal(err)
+		}
+		keptWant := "saved stack config (Pulumi.dev.yaml) insecureRegistries needs --allow-insecure-registries on every up; without it the platform refuses the list. Pass the flag, remove insecureRegistries from Pulumi.dev.yaml, or pass a --platform-config without it"
+		if _, err := p.prepare(opts); err == nil || err.Error() != keptWant {
+			t.Fatalf("error = %v, want %q", err, keptWant)
+		}
+		// A --platform-config without the list replaces the kept one.
+		writePlatformConfig(t, &p, `{"tenants":[]}`)
+		if _, err := p.prepare(opts); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("empty list needs no switch", func(t *testing.T) {
+		p, opts := objectKeyTestPulumi(t)
+		writePlatformConfig(t, &p, `{"insecureRegistries":[]}`)
+		if _, err := p.prepare(opts); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestUpValidatesKeptInsecureRegistries(t *testing.T) {
+	for _, tc := range []struct {
+		name, saved, want string
+	}{
+		{"JSON string form is accepted", `"[\"registry.local:5000\"]"`, ""},
+		{"scheme", `["http://registry.local:5000"]`, `saved stack config (Pulumi.dev.yaml): platform config insecureRegistries[0] = "http://registry.local:5000" must be a registry host[:port] as workload references spell it, without a scheme or path (the exact host[:port] grammar is checked by the platform during pulumi up); fix it there or pass --platform-config`},
+		{"secret", `{"secure":"v1:c2VjcmV0"}`, "saved stack config (Pulumi.dev.yaml): insecureRegistries must not be a secret; set it without --secret or pass --platform-config"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, opts := objectKeyTestPulumi(t)
+			saved := `{"config":{"di-framework-kube:insecureRegistries":` + tc.saved + `}}`
+			if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(saved), 0600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := p.prepare(insecureOpts(opts))
+			if tc.want == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got := stackConfigValue(t, p.Directory, "insecureRegistries"); got != `["registry.local:5000"]` {
+					t.Fatalf("insecureRegistries = %#v", got)
+				}
+				return
+			}
+			if err == nil || err.Error() != tc.want {
+				t.Fatalf("error = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestPlatformConfigPassesBackingServiceClasses(t *testing.T) {
+	classes := `[{"name":"egress-public","egress":{"allowedDestinations":["smtp.example.com:587"]}}]`
+	p, opts := objectKeyTestPulumi(t)
+	writePlatformConfig(t, &p, `{"backingServiceClasses":`+classes+`,"seedDefaultBackingClasses":false}`)
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	p.ConfigFile = ""
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := stackConfigValue(t, p.Directory, "backingServiceClasses"), decodeJSON(t, classes); !reflect.DeepEqual(got, want) {
+		t.Fatalf("backingServiceClasses = %v, want %v", got, want)
+	}
+	if got := stackConfigValue(t, p.Directory, "seedDefaultBackingClasses"); got != false {
+		t.Fatalf("seedDefaultBackingClasses = %#v", got)
+	}
+	for body, want := range map[string]string{
+		`{"backingServiceClasses":{"name":"x"}}`: "platform config backingServiceClasses must be a JSON array of class objects, got an object",
+		`{"backingServiceClasses":["x"]}`:        "platform config backingServiceClasses[0] must be a JSON object, got a string",
+		`{"seedDefaultBackingClasses":"false"}`:  "platform config seedDefaultBackingClasses must be a boolean, got a string",
+	} {
+		q, qopts := objectKeyTestPulumi(t)
+		writePlatformConfig(t, &q, body)
+		if _, err := q.prepare(qopts); err == nil || err.Error() != want {
+			t.Fatalf("%s: error = %v, want %q", body, err, want)
+		}
+	}
+}
+
+func TestWarnsDefaultHostImageWithInsecureRegistries(t *testing.T) {
+	for _, tc := range []struct {
+		name, config string
+		warn         bool
+	}{
+		{"default image", `{"insecureRegistries":` + insecureRegistriesJSON + `}`, true},
+		{"explicit default image", `{"tenantHostImage":"` + DefaultTenantHostImage + `","insecureRegistries":` + insecureRegistriesJSON + `}`, true},
+		{"patch-0002 image", `{"tenantHostImage":"ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad","insecureRegistries":` + insecureRegistriesJSON + `}`, false},
+		{"empty list", `{"insecureRegistries":[]}`, false},
+		{"no list", `{"tenants":[]}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, opts := objectKeyTestPulumi(t)
+			var stderr bytes.Buffer
+			p.Stderr = &stderr
+			writePlatformConfig(t, &p, tc.config)
+			// Non-fatal: up proceeds and writes the list either way.
+			if err := p.Up(context.Background(), insecureOpts(opts)); err != nil {
+				t.Fatal(err)
+			}
+			got := stderr.String()
+			if tc.warn != strings.Contains(got, "warning: insecureRegistries is set and tenantHostImage is this CLI's default") {
+				t.Fatalf("warn=%v, stderr=%q", tc.warn, got)
+			}
+			if tc.warn && (!strings.Contains(got, "6.0.11") || !strings.Contains(got, "patch 0002") || !strings.Contains(got, DefaultTenantHostImage)) {
+				t.Fatalf("warning lacks version, patch or image: %q", got)
+			}
+		})
+	}
+	// The warning also covers a kept list.
+	p, opts := objectKeyTestPulumi(t)
+	var stderr bytes.Buffer
+	p.Stderr = &stderr
+	if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(handSetInsecureRegistriesYAML), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Up(context.Background(), insecureOpts(opts)); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stderr.String(), "warning: insecureRegistries is set") {
+		t.Fatalf("no warning for a kept list: %q", stderr.String())
 	}
 }
