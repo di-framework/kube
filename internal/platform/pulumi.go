@@ -140,11 +140,28 @@ func validatePlatformConfigValue(key string, value any) error {
 // insecureRegistriesWithoutSwitch reports a non-empty insecureRegistries when
 // --allow-insecure-registries is off. The platform refuses that combination
 // ("insecureRegistries requires insecureRegistry: true"), only after the claim and npm install.
-func insecureRegistriesWithoutSwitch(value any, allow bool) error {
-	if entries, ok := value.([]any); ok && len(entries) > 0 && !allow {
-		return errors.New("platform config insecureRegistries needs --allow-insecure-registries on every up; without it the platform refuses the list")
+// kept is true when the list comes from the saved stack config rather than --platform-config.
+func insecureRegistriesWithoutSwitch(value any, allow, kept bool) error {
+	entries, ok := value.([]any)
+	if !ok || len(entries) == 0 || allow {
+		return nil
 	}
-	return nil
+	if kept {
+		return errors.New("saved stack config (Pulumi.dev.yaml) insecureRegistries needs --allow-insecure-registries on every up; without it the platform refuses the list. Pass the flag, remove insecureRegistries from Pulumi.dev.yaml, or pass a --platform-config without it")
+	}
+	return errors.New("platform config insecureRegistries needs --allow-insecure-registries on every up; without it the platform refuses the list")
+}
+
+// warnDefaultHostImageWithAllowlist warns, without refusing, when tenant hosts get an
+// insecureRegistries allowlist on this CLI's default tenant host image. That image predates
+// wash patch 0002, and @di-framework/platform 6.0.11 and later refuse the pairing; older
+// packages ignore insecureRegistries, so whether it fails depends on --platform-package.
+func warnDefaultHostImageWithAllowlist(w io.Writer, insecureRegistries any, tenantHostImage any) {
+	entries, ok := insecureRegistries.([]any)
+	if !ok || len(entries) == 0 || tenantHostImage != DefaultTenantHostImage {
+		return
+	}
+	fmt.Fprintf(w, "warning: insecureRegistries is set and tenantHostImage is this CLI's default %s, which predates wash patch 0002. @di-framework/platform 6.0.11 and later refuse insecureRegistries with that image during pulumi up; set tenantHostImage in --platform-config to an image built with patch 0002.\n", DefaultTenantHostImage)
 }
 
 // validateKeptValue checks a value of key kept from a previous up or set by hand with
@@ -152,8 +169,9 @@ func insecureRegistriesWithoutSwitch(value any, allow bool) error {
 // list as a JSON string, which config.getObject also parses, so that form is decoded
 // for the check; the stack config keeps the value unchanged.
 func validateKeptValue(key string, value any) (any, error) {
-	// pulumi config set --secret stores {"secure": "v1:..."}; the platform reads these
-	// keys as plain values, so a secret cannot be validated or used.
+	// pulumi config set --secret stores {"secure": "v1:..."}. Pulumi would decrypt it for
+	// the program, but up cannot shape-check it, and these keys hold no secret material,
+	// so up refuses a secret here as a policy.
 	if object, ok := value.(map[string]any); ok && len(object) == 1 {
 		if _, secret := object["secure"]; secret {
 			return nil, fmt.Errorf("saved stack config (Pulumi.dev.yaml): %s must not be a secret; set it without --secret or pass --platform-config", key)
@@ -291,7 +309,7 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 		if fileConfig, err = readPlatformConfig(p.ConfigFile); err != nil {
 			return projectIdentity{}, err
 		}
-		if err := insecureRegistriesWithoutSwitch(fileConfig["insecureRegistries"], options.AllowInsecureRegistries); err != nil {
+		if err := insecureRegistriesWithoutSwitch(fileConfig["insecureRegistries"], options.AllowInsecureRegistries, false); err != nil {
 			return projectIdentity{}, err
 		}
 	}
@@ -384,7 +402,7 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 			}
 		}
 	}
-	if err := insecureRegistriesWithoutSwitch(insecureRegistries, options.AllowInsecureRegistries); err != nil {
+	if err := insecureRegistriesWithoutSwitch(insecureRegistries, options.AllowInsecureRegistries, fileConfig == nil); err != nil {
 		return identity, err
 	}
 	values := map[string]any{}
@@ -400,6 +418,7 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 		values = merge(values, value)
 	}
 	applyTenantHostImage(config)
+	warnDefaultHostImageWithAllowlist(writerOrDiscard(p.Stderr), insecureRegistries, config["tenantHostImage"])
 	if _, ok := config["networkPolicyEngine"]; !ok {
 		engine := p.NetworkPolicyEngine
 		if engine == "" {

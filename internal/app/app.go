@@ -114,7 +114,7 @@ func newUpCommand(root *rootOptions) *cobra.Command {
 	flags.DurationVar(&options.timeout, "timeout", 10*time.Minute, "cluster and platform readiness timeout")
 	flags.IntVar(&options.httpPort, "http-port", 28080, "localhost port for wasmCloud HTTP in container mode (0 disables publishing)")
 	flags.IntVar(&options.nodePort, "node-port", 30080, "Kubernetes NodePort for the wasmCloud host (0 uses ClusterIP)")
-	flags.BoolVar(&options.allowInsecureRegistries, "allow-insecure-registries", false, "allow hosts to pull components from plain-HTTP OCI registries")
+	flags.BoolVar(&options.allowInsecureRegistries, "allow-insecure-registries", false, "allow the shared host to pull from plain-HTTP OCI registries; tenant hosts (platform 6.0.11+) only from the platform config insecureRegistries entries")
 	flags.StringSliceVarP(&options.valueFiles, "values", "f", nil, "additional Helm values file (repeatable)")
 	flags.BoolVar(&options.debug, "debug", false, "show Pulumi debug logs")
 	return command

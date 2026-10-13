@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -721,8 +722,14 @@ func TestInsecureRegistriesNeedsSwitch(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(handSetInsecureRegistriesYAML), 0600); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := p.prepare(opts); err == nil || err.Error() != want {
-			t.Fatalf("error = %v, want %q", err, want)
+		keptWant := "saved stack config (Pulumi.dev.yaml) insecureRegistries needs --allow-insecure-registries on every up; without it the platform refuses the list. Pass the flag, remove insecureRegistries from Pulumi.dev.yaml, or pass a --platform-config without it"
+		if _, err := p.prepare(opts); err == nil || err.Error() != keptWant {
+			t.Fatalf("error = %v, want %q", err, keptWant)
+		}
+		// A --platform-config without the list replaces the kept one.
+		writePlatformConfig(t, &p, `{"tenants":[]}`)
+		if _, err := p.prepare(opts); err != nil {
+			t.Fatal(err)
 		}
 	})
 	t.Run("empty list needs no switch", func(t *testing.T) {
@@ -792,5 +799,49 @@ func TestPlatformConfigPassesBackingServiceClasses(t *testing.T) {
 		if _, err := q.prepare(qopts); err == nil || err.Error() != want {
 			t.Fatalf("%s: error = %v, want %q", body, err, want)
 		}
+	}
+}
+
+func TestWarnsDefaultHostImageWithInsecureRegistries(t *testing.T) {
+	for _, tc := range []struct {
+		name, config string
+		warn         bool
+	}{
+		{"default image", `{"insecureRegistries":` + insecureRegistriesJSON + `}`, true},
+		{"explicit default image", `{"tenantHostImage":"` + DefaultTenantHostImage + `","insecureRegistries":` + insecureRegistriesJSON + `}`, true},
+		{"patch-0002 image", `{"tenantHostImage":"ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad","insecureRegistries":` + insecureRegistriesJSON + `}`, false},
+		{"empty list", `{"insecureRegistries":[]}`, false},
+		{"no list", `{"tenants":[]}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, opts := objectKeyTestPulumi(t)
+			var stderr bytes.Buffer
+			p.Stderr = &stderr
+			writePlatformConfig(t, &p, tc.config)
+			// Non-fatal: up proceeds and writes the list either way.
+			if err := p.Up(context.Background(), insecureOpts(opts)); err != nil {
+				t.Fatal(err)
+			}
+			got := stderr.String()
+			if tc.warn != strings.Contains(got, "warning: insecureRegistries is set and tenantHostImage is this CLI's default") {
+				t.Fatalf("warn=%v, stderr=%q", tc.warn, got)
+			}
+			if tc.warn && (!strings.Contains(got, "6.0.11") || !strings.Contains(got, "patch 0002") || !strings.Contains(got, DefaultTenantHostImage)) {
+				t.Fatalf("warning lacks version, patch or image: %q", got)
+			}
+		})
+	}
+	// The warning also covers a kept list.
+	p, opts := objectKeyTestPulumi(t)
+	var stderr bytes.Buffer
+	p.Stderr = &stderr
+	if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(handSetInsecureRegistriesYAML), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Up(context.Background(), insecureOpts(opts)); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stderr.String(), "warning: insecureRegistries is set") {
+		t.Fatalf("no warning for a kept list: %q", stderr.String())
 	}
 }
