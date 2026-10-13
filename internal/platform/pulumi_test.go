@@ -306,6 +306,11 @@ func TestRejectsMalformedRouteAliases(t *testing.T) {
 		{"object value", `{"identity.identity":{"to":"identity.identity-pg"}}`, `platform config routeAliases["identity.identity"] must be a non-empty string, got an object`},
 		{"empty value", `{"identity.identity":""}`, `platform config routeAliases["identity.identity"] must be a non-empty string, got an empty string`},
 		{"empty name", `{"":"identity.identity-pg"}`, "platform config routeAliases has an empty route name"},
+		{"uppercase name", `{"Identity.identity":"identity.identity-pg"}`, `platform config routeAliases route name "Identity.identity" must be <label>.<label> with lowercase DNS-1123 labels (reserved names and alias chains are checked by the platform during pulumi up)`},
+		{"single-label name", `{"identity":"identity.identity-pg"}`, `platform config routeAliases route name "identity" must be <label>.<label> with lowercase DNS-1123 labels (reserved names and alias chains are checked by the platform during pulumi up)`},
+		{"three-label name", `{"a.b.c":"identity.identity-pg"}`, `platform config routeAliases route name "a.b.c" must be <label>.<label> with lowercase DNS-1123 labels (reserved names and alias chains are checked by the platform during pulumi up)`},
+		{"bad value label", `{"identity.identity":"identity.identity_pg"}`, `platform config routeAliases["identity.identity"] = "identity.identity_pg" must be <label>.<label> with lowercase DNS-1123 labels (reserved names and alias chains are checked by the platform during pulumi up)`},
+		{"value label ends with hyphen", `{"identity.identity":"identity-.identity-pg"}`, `platform config routeAliases["identity.identity"] = "identity-.identity-pg" must be <label>.<label> with lowercase DNS-1123 labels (reserved names and alias chains are checked by the platform during pulumi up)`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p, opts := objectKeyTestPulumi(t)
@@ -318,9 +323,7 @@ func TestRejectsMalformedRouteAliases(t *testing.T) {
 			if err == nil || err.Error() != tc.want {
 				t.Fatalf("error = %v, want %q", err, tc.want)
 			}
-			if _, statErr := os.Stat(filepath.Join(p.Directory, "Pulumi.dev.yaml")); !errors.Is(statErr, os.ErrNotExist) {
-				t.Fatal("wrote the stack config despite malformed routeAliases")
-			}
+			assertProjectEmpty(t, p.Directory)
 		})
 	}
 }
@@ -330,6 +333,116 @@ func TestRejectsNonObjectTenantAuth(t *testing.T) {
 	writePlatformConfig(t, &p, `{"tenantAuth":"ghcr.io/di-framework/tenant-auth:1"}`)
 	if _, err := p.prepare(opts); err == nil || err.Error() != "platform config tenantAuth must be a JSON object, got a string" {
 		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(p.Directory, "Pulumi.dev.yaml")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("wrote the stack config despite a non-object tenantAuth")
+	}
+	assertProjectEmpty(t, p.Directory)
+}
+
+// assertProjectEmpty checks that a rejected platform config left nothing behind:
+// no state/, .passphrase, identity, stack config or vendored tarball.
+func assertProjectEmpty(t *testing.T, dir string) {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		names := []string{}
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Fatalf("project directory not empty after rejection: %v", names)
+	}
+}
+
+func TestRejectedConfigLeavesFreshProjectAbsent(t *testing.T) {
+	p, opts := objectKeyTestPulumi(t)
+	p.Directory = filepath.Join(p.Directory, "platform")
+	tarball := filepath.Join(t.TempDir(), "di-framework-platform-6.0.2.tgz")
+	if err := os.WriteFile(tarball, []byte("build"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	p.Package = "file:" + tarball
+	writePlatformConfig(t, &p, `{"routeAliases":"x"}`)
+	if _, err := p.prepare(opts); err == nil || !strings.Contains(err.Error(), "routeAliases must be a JSON object") {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(p.Directory); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("created the project directory before validating the platform config: %v", err)
+	}
+}
+
+// Phase D of proving-grounds sets tenantAuth by hand with
+// `pulumi config set --path tenantAuth --json ...`, which leaves YAML.
+const handSetStackYAML = `encryptionsalt: v1:abc
+config:
+  di-framework-kube:tenants:
+    - name: alpha
+  di-framework-kube:tenantAuth:
+    image: ghcr.io/di-framework/tenant-auth@sha256:7a57d4241e876ef253bd50bd921a2a890af9dabc49842e8de465038a57b08f08
+    issuer: http://stub-oidc.pg-stub-oidc.svc.cluster.local
+    oauthClient:
+      id: pgprove-console
+      secretName: tenant-auth-oauth
+    issuerUpstreamPodPort: 8080
+    registry:
+      component: ghcr.io/di-framework/oci-registry:1
+  di-framework-kube:routeAliases:
+    identity.identity: identity.identity-pg
+    console.console: console.console-v2
+`
+
+func TestUpKeepsHandSetYAMLTenantAuth(t *testing.T) {
+	p, opts := objectKeyTestPulumi(t)
+	if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(handSetStackYAML), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Up(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := stackConfigValue(t, p.Directory, "tenantAuth"), decodeJSON(t, tenantAuthJSON); !reflect.DeepEqual(got, want) {
+		t.Fatalf("tenantAuth = %v, want %v", got, want)
+	}
+	if got, want := stackConfigValue(t, p.Directory, "routeAliases"), decodeJSON(t, routeAliasesJSON); !reflect.DeepEqual(got, want) {
+		t.Fatalf("routeAliases = %v, want %v", got, want)
+	}
+	b, _ := os.ReadFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"))
+	if !strings.Contains(string(b), "v1:abc") {
+		t.Fatal("lost encryptionsalt")
+	}
+}
+
+func TestUpValidatesKeptRouteAliases(t *testing.T) {
+	for _, tc := range []struct {
+		name, saved, want string
+	}{
+		{"JSON string form is accepted", `"{\"identity.identity\":\"identity.identity-pg\"}"`, ""},
+		{"bad label", `{"identity.identity":"Identity.PG"}`, `saved stack config (Pulumi.dev.yaml): platform config routeAliases["identity.identity"] = "Identity.PG" must be <label>.<label> with lowercase DNS-1123 labels (reserved names and alias chains are checked by the platform during pulumi up); fix it there or pass --platform-config`},
+		{"non-JSON string", `"identity.identity=identity.identity-pg"`, "saved stack config routeAliases is a string that is not a JSON object"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, opts := objectKeyTestPulumi(t)
+			saved := `{"config":{"di-framework-kube:routeAliases":` + tc.saved + `}}`
+			if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(saved), 0600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := p.prepare(opts)
+			if tc.want == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				// Passed through unchanged, in the form config.getObject parses.
+				if got := stackConfigValue(t, p.Directory, "routeAliases"); got != `{"identity.identity":"identity.identity-pg"}` {
+					t.Fatalf("routeAliases = %#v", got)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error = %v, want %q", err, tc.want)
+			}
+		})
 	}
 }
 
