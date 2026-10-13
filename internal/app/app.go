@@ -99,7 +99,7 @@ func newUpCommand(root *rootOptions) *cobra.Command {
 	}
 	flags := command.Flags()
 	flags.StringVar(&options.platformPackage, "platform-package", platform.DefaultPlatformPackage, "pinned shared platform npm package or file: tarball")
-	flags.StringVar(&options.platformConfig, "platform-config", "", "JSON file containing tenants, users, tenant runtime image settings, routeAliases, and tenantAuth")
+	flags.StringVar(&options.platformConfig, "platform-config", "", "JSON file containing tenants, users, tenant runtime image settings, routeAliases, tenantAuth, insecureRegistries, and backing service classes")
 	flags.StringVar(&options.name, "name", "local", "instance name")
 	flags.StringVar(&options.runMode, "run-mode", "container", "Kubesolo run mode: container or service")
 	flags.StringVar(&options.kubesoloVersion, "kubesolo-version", kubesolo.DefaultVersion, "Kubesolo version")
