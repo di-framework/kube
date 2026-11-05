@@ -1,6 +1,6 @@
 import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { binary, instance, kubectl, outputs, run, workspace } from "./platform";
+import { binary, examplesRegistry, instance, kubectl, namespace, outputs, run, workspace } from "./platform";
 
 // The app config is the single source of project identity; new apps are discovered.
 const names: string[] = [];
@@ -45,7 +45,7 @@ const helmValueFiles = (includeStorageHost: boolean) => {
   return files;
 };
 const upArgs = (files: string[]) =>
-  [binary, "up", "--name", instance, "--http-port", String(httpPort), "--allow-insecure-registries", ...files.flatMap((file) => ["--values", file])];
+  [binary, "up", "--name", instance, "--http-port", String(httpPort), "--allow-insecure-registries", "--insecure-registry", examplesRegistry, ...files.flatMap((file) => ["--values", file])];
 // PVC must exist before Helm references it in the storage hostgroup.
 if (needsStorageHost) {
   await run(upArgs(helmValueFiles(false)));
@@ -55,6 +55,7 @@ if (needsStorageHost) {
 // Explicitly scoped to the selected di-framework-kube instance, never kubectl's current context.
 await run(upArgs(helmValueFiles(needsStorageHost)));
 const platform = await outputs();
+if (platform.namespace !== namespace) throw new Error(`Instance ${instance} uses namespace ${platform.namespace}; the examples registry allowlist names ${namespace}`);
 await run(kubectl(platform, "apply", "-f", resolve(workspace, "infra/registry.yaml")));
 await run(kubectl(platform, "rollout", "status", "deployment/examples-registry", "--timeout=180s"));
 if (needsStorageHost) {

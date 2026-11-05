@@ -44,6 +44,7 @@ type upOptions struct {
 	httpPort                int
 	nodePort                int
 	allowInsecureRegistries bool
+	insecureRegistries      []string
 	valueFiles              []string
 	debug                   bool
 }
@@ -115,6 +116,7 @@ func newUpCommand(root *rootOptions) *cobra.Command {
 	flags.IntVar(&options.httpPort, "http-port", 28080, "localhost port for wasmCloud HTTP in container mode (0 disables publishing)")
 	flags.IntVar(&options.nodePort, "node-port", 30080, "Kubernetes NodePort for the wasmCloud host (0 uses ClusterIP)")
 	flags.BoolVar(&options.allowInsecureRegistries, "allow-insecure-registries", false, "allow the shared host to pull from plain-HTTP OCI registries; tenant hosts (platform 6.0.11+) only from the platform config insecureRegistries entries")
+	flags.StringSliceVar(&options.insecureRegistries, "insecure-registry", nil, "plain-HTTP registry host[:port] tenant hosts may pull from, added to the platform config insecureRegistries and kept by later ups (repeatable; needs --allow-insecure-registries)")
 	flags.StringSliceVarP(&options.valueFiles, "values", "f", nil, "additional Helm values file (repeatable)")
 	flags.BoolVar(&options.debug, "debug", false, "show Pulumi debug logs")
 	return command
@@ -221,7 +223,8 @@ func runUp(ctx context.Context, stdout, stderr io.Writer, store state.Store, opt
 	if err := client.Up(ctx, platform.InstallOptions{
 		Release: options.release, Chart: options.chart, ChartVersion: options.chartVersion,
 		Timeout: options.timeout, NodePort: options.nodePort,
-		AllowInsecureRegistries: options.allowInsecureRegistries, ValueFiles: options.valueFiles,
+		AllowInsecureRegistries: options.allowInsecureRegistries, InsecureRegistries: options.insecureRegistries,
+		ValueFiles: options.valueFiles,
 	}); err != nil {
 		return err
 	}
@@ -264,6 +267,12 @@ func validateUpOptions(options upOptions) error {
 		if strings.TrimSpace(value.value) == "" {
 			return fmt.Errorf("%s must not be empty", value.label)
 		}
+	}
+	if err := platform.ValidateInsecureRegistryFlags(options.insecureRegistries); err != nil {
+		return err
+	}
+	if len(options.insecureRegistries) > 0 && !options.allowInsecureRegistries {
+		return errors.New("--insecure-registry needs --allow-insecure-registries on every up; without it the platform refuses the list")
 	}
 	return nil
 }

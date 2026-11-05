@@ -25,13 +25,17 @@ import (
 
 // DefaultPlatformPackage is the shared platform release up installs. Override it with
 // --platform-package @di-framework/platform@<version> or file:<absolute tarball path>.
-const DefaultPlatformPackage = "@di-framework/platform@6.0.13"
+const DefaultPlatformPackage = "@di-framework/platform@6.0.28"
 
-// DefaultTenantHostImage is the published wash image with wasi-tls and patch 0002
-// (--insecure-registry), the platform's own DEFAULT_HOST_IMAGE at v6.0.13. The tag moves
-// on the next publish; this digest is the multi-arch index. A platform-config
-// tenantHostImage replaces it.
-const DefaultTenantHostImage = "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad"
+// DefaultTenantHostImage is the published wash image with wasi-tls, patch 0002
+// (--insecure-registry) and patch 0003 (NATS blobstore credentials): the platform's own
+// DEFAULT_HOST_IMAGE at v6.0.28, listed in its NATS_CREDENTIALS_HOST_IMAGE_DIGESTS, which a
+// tenant registry (tenantAuth.registry) needs for its own NATS account. The tag moves on
+// the next publish; this digest is the multi-arch index. A platform-config tenantHostImage
+// replaces it; the platform's matching wasi-tls-exclusive build (platform/tenant-host/README.md)
+// is the other image it knows to carry 0003. Move this pin together with
+// DefaultPlatformPackage: the platform fails closed on a digest it does not list.
+const DefaultTenantHostImage = "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:8f0ee9c5a19ae0433e83a553431f1728ddf0a4787059c10e511209263d294537"
 
 // previousTenantHostImages are values this CLI used to write as
 // DefaultTenantHostImage. A saved copy is the old default, not a user choice,
@@ -39,6 +43,9 @@ const DefaultTenantHostImage = "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:
 var previousTenantHostImages = []string{
 	// Before patch 0002; platform 6.0.11+ refuses it with insecureRegistries.
 	"ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669",
+	// Patch 0002 without 0003, the platform's default at 6.0.13: a tenant registry on it
+	// stays anonymous, so platform 6.0.20+ installs should not keep it.
+	"ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad",
 }
 
 // preAllowlistHostImageDigests mirrors the platform's PRE_ALLOWLIST_HOST_IMAGE_DIGESTS
@@ -140,11 +147,8 @@ func validatePlatformConfigValue(key string, value any) error {
 			if !ok || s == "" {
 				return fmt.Errorf("platform config insecureRegistries[%d] must be a non-empty string, got %s (%s)", i, jsonKind(entry), insecureRegistryRulesNote)
 			}
-			if strings.IndexFunc(s, unicode.IsSpace) >= 0 {
-				return fmt.Errorf("platform config insecureRegistries[%d] = %q must not contain whitespace (%s)", i, s, insecureRegistryRulesNote)
-			}
-			if strings.Contains(s, "://") || strings.Contains(s, "/") {
-				return fmt.Errorf("platform config insecureRegistries[%d] = %q must be a registry host[:port] as workload references spell it, without a scheme or path (%s)", i, s, insecureRegistryRulesNote)
+			if reason := insecureRegistryEntryProblem(s); reason != "" {
+				return fmt.Errorf("platform config insecureRegistries[%d] = %q %s (%s)", i, s, reason, insecureRegistryRulesNote)
 			}
 		}
 	case "backingServiceClasses":
@@ -163,6 +167,48 @@ func validatePlatformConfigValue(key string, value any) error {
 		}
 	}
 	return nil
+}
+
+// insecureRegistryEntryProblem reports why a non-empty registry entry fails the shape
+// check, or "" when it passes. The platform owns the host[:port] grammar.
+func insecureRegistryEntryProblem(s string) string {
+	if strings.IndexFunc(s, unicode.IsSpace) >= 0 {
+		return "must not contain whitespace"
+	}
+	if strings.Contains(s, "://") || strings.Contains(s, "/") {
+		return "must be a registry host[:port] as workload references spell it, without a scheme or path"
+	}
+	return ""
+}
+
+// ValidateInsecureRegistryFlags checks the shape of --insecure-registry values the same
+// way platform config insecureRegistries entries are checked.
+func ValidateInsecureRegistryFlags(entries []string) error {
+	for _, s := range entries {
+		if s == "" {
+			return fmt.Errorf("--insecure-registry must be a registry host[:port], got an empty string (%s)", insecureRegistryRulesNote)
+		}
+		if reason := insecureRegistryEntryProblem(s); reason != "" {
+			return fmt.Errorf("--insecure-registry %q %s (%s)", s, reason, insecureRegistryRulesNote)
+		}
+	}
+	return nil
+}
+
+// addInsecureRegistries returns list (a decoded insecureRegistries array, or nil) with
+// each entry of extra appended that it does not already hold, spelled exactly: wash
+// matches case-sensitively and adds no default port. It returns ok=false when nothing
+// was added, so a kept value is written back unchanged.
+func addInsecureRegistries(list any, extra []string) (merged []any, ok bool) {
+	entries, _ := list.([]any)
+	merged = slices.Clone(entries)
+	for _, s := range extra {
+		if !slices.Contains(merged, any(s)) {
+			merged = append(merged, s)
+			ok = true
+		}
+	}
+	return merged, ok
 }
 
 // insecureRegistriesWithoutSwitch reports a non-empty insecureRegistries when
@@ -433,6 +479,16 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 	}
 	if err := insecureRegistriesWithoutSwitch(insecureRegistries, options.AllowInsecureRegistries, fileConfig == nil); err != nil {
 		return identity, err
+	}
+	if err := ValidateInsecureRegistryFlags(options.InsecureRegistries); err != nil {
+		return identity, err
+	}
+	if merged, added := addInsecureRegistries(insecureRegistries, options.InsecureRegistries); added {
+		if !options.AllowInsecureRegistries {
+			return identity, errors.New("--insecure-registry needs --allow-insecure-registries on every up; without it the platform refuses the list")
+		}
+		insecureRegistries = merged
+		config["insecureRegistries"] = merged
 	}
 	values := map[string]any{}
 	for _, file := range options.ValueFiles {

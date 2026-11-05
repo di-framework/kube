@@ -634,13 +634,14 @@ func compareVersions(a, b [3]int) int {
 }
 
 func TestDefaultPlatformPackageIsPinned(t *testing.T) {
-	// 6.0.13 is the first release that reads routeAliases; any exact later version passes.
+	// 6.0.28 is the release whose DEFAULT_HOST_IMAGE is DefaultTenantHostImage (listed for
+	// NATS credentials since 6.0.20); any exact later version passes.
 	version, ok := strings.CutPrefix(DefaultPlatformPackage, "@di-framework/platform@")
 	if !ok {
 		t.Fatal(DefaultPlatformPackage)
 	}
-	if compareVersions(parseVersion(t, version), parseVersion(t, "6.0.13")) < 0 {
-		t.Fatalf("DefaultPlatformPackage %s is older than 6.0.13", DefaultPlatformPackage)
+	if compareVersions(parseVersion(t, version), parseVersion(t, "6.0.28")) < 0 {
+		t.Fatalf("DefaultPlatformPackage %s is older than 6.0.28", DefaultPlatformPackage)
 	}
 }
 
@@ -666,45 +667,53 @@ func TestCompareVersions(t *testing.T) {
 }
 
 func TestAnnouncesPreviousDefaultImageSwap(t *testing.T) {
-	old := "ghcr.io/di-framework/wash:2.8.0-wasi-tls@" + oldHostDigest
-	notice := "notice: tenantHostImage " + old + " is an earlier di-framework-kube default; replacing it with " + DefaultTenantHostImage + ", which rolls every tenant host\n"
-	t.Run("saved", func(t *testing.T) {
-		p, opts := objectKeyTestPulumi(t)
-		var stderr bytes.Buffer
-		p.Stderr = &stderr
-		if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(`{"config":{"di-framework-kube:tenantHostImage":"`+old+`"}}`), 0600); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := p.prepare(opts); err != nil {
-			t.Fatal(err)
-		}
-		if stderr.String() != notice {
-			t.Fatalf("stderr = %q, want %q", stderr.String(), notice)
-		}
-		// The next up has nothing to swap and says nothing.
-		stderr.Reset()
-		if _, err := p.prepare(opts); err != nil {
-			t.Fatal(err)
-		}
-		if stderr.Len() != 0 {
-			t.Fatalf("second up printed %q", stderr.String())
-		}
-	})
-	t.Run("platform.json", func(t *testing.T) {
-		p, opts := objectKeyTestPulumi(t)
-		var stderr bytes.Buffer
-		p.Stderr = &stderr
-		writePlatformConfig(t, &p, `{"tenantHostImage":"`+old+`"}`)
-		if _, err := p.prepare(opts); err != nil {
-			t.Fatal(err)
-		}
-		if stderr.String() != notice {
-			t.Fatalf("stderr = %q, want %q", stderr.String(), notice)
-		}
-		if got := stackConfigValue(t, p.Directory, "tenantHostImage"); got != DefaultTenantHostImage {
-			t.Fatal(got)
-		}
-	})
+	// Every earlier CLI default is announced and replaced, not only the oldest.
+	if len(previousTenantHostImages) < 2 {
+		t.Fatalf("previousTenantHostImages = %v, want the ee89fd4b and d88158b0 defaults", previousTenantHostImages)
+	}
+	for _, old := range previousTenantHostImages {
+		notice := "notice: tenantHostImage " + old + " is an earlier di-framework-kube default; replacing it with " + DefaultTenantHostImage + ", which rolls every tenant host\n"
+		t.Run("saved "+old[strings.LastIndex(old, ":")+1:][:8], func(t *testing.T) {
+			p, opts := objectKeyTestPulumi(t)
+			var stderr bytes.Buffer
+			p.Stderr = &stderr
+			if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(`{"config":{"di-framework-kube:tenantHostImage":"`+old+`"}}`), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := p.prepare(opts); err != nil {
+				t.Fatal(err)
+			}
+			if stderr.String() != notice {
+				t.Fatalf("stderr = %q, want %q", stderr.String(), notice)
+			}
+			if got := stackConfigValue(t, p.Directory, "tenantHostImage"); got != DefaultTenantHostImage {
+				t.Fatal(got)
+			}
+			// The next up has nothing to swap and says nothing.
+			stderr.Reset()
+			if _, err := p.prepare(opts); err != nil {
+				t.Fatal(err)
+			}
+			if stderr.Len() != 0 {
+				t.Fatalf("second up printed %q", stderr.String())
+			}
+		})
+		t.Run("platform.json "+old[strings.LastIndex(old, ":")+1:][:8], func(t *testing.T) {
+			p, opts := objectKeyTestPulumi(t)
+			var stderr bytes.Buffer
+			p.Stderr = &stderr
+			writePlatformConfig(t, &p, `{"tenantHostImage":"`+old+`"}`)
+			if _, err := p.prepare(opts); err != nil {
+				t.Fatal(err)
+			}
+			if stderr.String() != notice {
+				t.Fatalf("stderr = %q, want %q", stderr.String(), notice)
+			}
+			if got := stackConfigValue(t, p.Directory, "tenantHostImage"); got != DefaultTenantHostImage {
+				t.Fatal(got)
+			}
+		})
+	}
 	t.Run("other images are not announced", func(t *testing.T) {
 		for _, image := range []string{"", DefaultTenantHostImage, "example/wash:local", "ghcr.io/di-framework/wash@" + oldHostDigest} {
 			p, opts := objectKeyTestPulumi(t)
@@ -776,6 +785,117 @@ config:
     - examples-registry.wasmcloud.svc.cluster.local:5000
     - registry.local
 `
+
+// examplesRegistry is the entry kube's examples pass with --insecure-registry (kube#8).
+const examplesRegistry = "examples-registry.wasmcloud.svc.cluster.local:5000"
+
+func registryOpts(opts InstallOptions, entries ...string) InstallOptions {
+	opts = insecureOpts(opts)
+	opts.InsecureRegistries = entries
+	return opts
+}
+
+func TestUpAddsInsecureRegistryFlag(t *testing.T) {
+	t.Run("fresh instance", func(t *testing.T) {
+		p, opts := objectKeyTestPulumi(t)
+		if err := p.Up(context.Background(), registryOpts(opts, examplesRegistry)); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := stackConfigValue(t, p.Directory, "insecureRegistries"), []any{examplesRegistry}; !reflect.DeepEqual(got, want) {
+			t.Fatalf("insecureRegistries = %#v, want %#v", got, want)
+		}
+		if stackConfigValue(t, p.Directory, "insecureRegistry") != true {
+			t.Fatal("insecureRegistry not set")
+		}
+		// Later ups keep it, with or without the flag, and never duplicate it.
+		for _, next := range []InstallOptions{insecureOpts(opts), registryOpts(opts, examplesRegistry)} {
+			if err := p.Up(context.Background(), next); err != nil {
+				t.Fatal(err)
+			}
+			if got, want := stackConfigValue(t, p.Directory, "insecureRegistries"), []any{examplesRegistry}; !reflect.DeepEqual(got, want) {
+				t.Fatalf("insecureRegistries = %#v after a later up, want %#v", got, want)
+			}
+		}
+	})
+	t.Run("added to the platform.json list", func(t *testing.T) {
+		p, opts := objectKeyTestPulumi(t)
+		writePlatformConfig(t, &p, `{"tenants":[],"insecureRegistries":["registry.local"]}`)
+		if err := p.Up(context.Background(), registryOpts(opts, examplesRegistry, "registry.local")); err != nil {
+			t.Fatal(err)
+		}
+		want := []any{"registry.local", examplesRegistry}
+		if got := stackConfigValue(t, p.Directory, "insecureRegistries"); !reflect.DeepEqual(got, want) {
+			t.Fatalf("insecureRegistries = %#v, want %#v", got, want)
+		}
+		if got := stackConfigValue(t, p.Directory, "tenants"); !reflect.DeepEqual(got, []any{}) {
+			t.Fatalf("tenants = %#v, want the declarations from platform.json", got)
+		}
+		// A platform.json without the key and no flag removes the list, as before.
+		writePlatformConfig(t, &p, `{"tenants":[]}`)
+		if err := p.Up(context.Background(), insecureOpts(opts)); err != nil {
+			t.Fatal(err)
+		}
+		if got := stackConfigValue(t, p.Directory, "insecureRegistries"); got != nil {
+			t.Fatalf("insecureRegistries kept after removal from platform.json: %v", got)
+		}
+	})
+	t.Run("added to a hand-set list", func(t *testing.T) {
+		p, opts := objectKeyTestPulumi(t)
+		if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(handSetInsecureRegistriesYAML), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := p.Up(context.Background(), registryOpts(opts, "mirror.local:5000", examplesRegistry)); err != nil {
+			t.Fatal(err)
+		}
+		want := []any{examplesRegistry, "registry.local", "mirror.local:5000"}
+		if got := stackConfigValue(t, p.Directory, "insecureRegistries"); !reflect.DeepEqual(got, want) {
+			t.Fatalf("insecureRegistries = %#v, want %#v", got, want)
+		}
+	})
+	t.Run("added to the JSON-string form", func(t *testing.T) {
+		// Without --path, pulumi config set stores the list as a JSON string.
+		p, opts := objectKeyTestPulumi(t)
+		saved := `{"config":{"di-framework-kube:insecureRegistries":"[\"registry.local:5000\"]"}}`
+		if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(saved), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := p.Up(context.Background(), registryOpts(opts, examplesRegistry)); err != nil {
+			t.Fatal(err)
+		}
+		want := []any{"registry.local:5000", examplesRegistry}
+		if got := stackConfigValue(t, p.Directory, "insecureRegistries"); !reflect.DeepEqual(got, want) {
+			t.Fatalf("insecureRegistries = %#v, want %#v", got, want)
+		}
+	})
+	t.Run("needs the switch", func(t *testing.T) {
+		p, opts := objectKeyTestPulumi(t)
+		opts.InsecureRegistries = []string{examplesRegistry}
+		want := "--insecure-registry needs --allow-insecure-registries on every up; without it the platform refuses the list"
+		if err := p.Up(context.Background(), opts); err == nil || err.Error() != want {
+			t.Fatalf("error = %v, want %q", err, want)
+		}
+		if _, err := os.Stat(filepath.Join(p.Directory, "Pulumi.dev.yaml")); !errors.Is(err, os.ErrNotExist) {
+			t.Fatal("stack config written without the switch")
+		}
+	})
+	t.Run("malformed entries", func(t *testing.T) {
+		note := " (the exact host[:port] grammar is checked by the platform during pulumi up)"
+		for _, tc := range []struct{ entry, want string }{
+			{"", "--insecure-registry must be a registry host[:port], got an empty string" + note},
+			{"registry.local :5000", `--insecure-registry "registry.local :5000" must not contain whitespace` + note},
+			{"http://registry.local:5000", `--insecure-registry "http://registry.local:5000" must be a registry host[:port] as workload references spell it, without a scheme or path` + note},
+			{"registry.local:5000/examples", `--insecure-registry "registry.local:5000/examples" must be a registry host[:port] as workload references spell it, without a scheme or path` + note},
+		} {
+			p, opts := objectKeyTestPulumi(t)
+			if err := p.Up(context.Background(), registryOpts(opts, tc.entry)); err == nil || err.Error() != tc.want {
+				t.Fatalf("%q: error = %v, want %q", tc.entry, err, tc.want)
+			}
+			if _, err := os.Stat(filepath.Join(p.Directory, "Pulumi.dev.yaml")); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("%q: stack config written", tc.entry)
+			}
+		}
+	})
+}
 
 func TestUpKeepsHandSetYAMLInsecureRegistries(t *testing.T) {
 	p, opts := objectKeyTestPulumi(t)
@@ -917,6 +1037,9 @@ func TestPlatformConfigPassesBackingServiceClasses(t *testing.T) {
 
 const oldHostDigest = "sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669"
 
+// pre0003HostDigest is the CLI's default from v0.0.5 (platform 6.0.13): patch 0002 only.
+const pre0003HostDigest = "sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad"
+
 func TestDefaultTenantHostImageSupportsAllowlist(t *testing.T) {
 	if preAllowlistHostImage(DefaultTenantHostImage) {
 		t.Fatalf("DefaultTenantHostImage %s is on the platform's pre-0002 list", DefaultTenantHostImage)
@@ -927,10 +1050,23 @@ func TestDefaultTenantHostImageSupportsAllowlist(t *testing.T) {
 	if slices.Contains(previousTenantHostImages, DefaultTenantHostImage) {
 		t.Fatal("the current default is listed as a previous default")
 	}
-	for _, image := range previousTenantHostImages {
-		if !preAllowlistHostImage(image) {
-			t.Fatalf("previous default %s is not a pre-0002 image; check whether it belongs here", image)
+	// Each earlier default is a published wasi-tls build of this CLI's, listed once, so a
+	// saved copy is replaced on the next up; the pre-0002 one stays on the platform's list.
+	for i, image := range previousTenantHostImages {
+		if !strings.HasPrefix(image, "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:") {
+			t.Fatalf("previous default %s is not a published wasi-tls image; check whether it belongs here", image)
 		}
+		if slices.Index(previousTenantHostImages, image) != i {
+			t.Fatalf("previous default %s is listed twice", image)
+		}
+	}
+	for _, digest := range []string{oldHostDigest, pre0003HostDigest} {
+		if !slices.Contains(previousTenantHostImages, "ghcr.io/di-framework/wash:2.8.0-wasi-tls@"+digest) {
+			t.Fatalf("previous defaults %v lack %s", previousTenantHostImages, digest)
+		}
+	}
+	if !preAllowlistHostImage("ghcr.io/di-framework/wash:2.8.0-wasi-tls@" + oldHostDigest) {
+		t.Fatal("the pre-0002 default left the platform's pre-0002 list")
 	}
 }
 
@@ -957,8 +1093,9 @@ func TestWarnsPre0002HostImageWithInsecureRegistries(t *testing.T) {
 	}{
 		{"default image", `{"insecureRegistries":` + insecureRegistriesJSON + `}`, false},
 		{"explicit default image", `{"tenantHostImage":"` + DefaultTenantHostImage + `","insecureRegistries":` + insecureRegistriesJSON + `}`, false},
-		// The old CLI default is replaced by the current one, so it does not warn.
+		// The old CLI defaults are replaced by the current one, so they do not warn.
 		{"old CLI default", `{"tenantHostImage":"ghcr.io/di-framework/wash:2.8.0-wasi-tls@` + oldHostDigest + `","insecureRegistries":` + insecureRegistriesJSON + `}`, false},
+		{"pre-0003 CLI default", `{"tenantHostImage":"ghcr.io/di-framework/wash:2.8.0-wasi-tls@` + pre0003HostDigest + `","insecureRegistries":` + insecureRegistriesJSON + `}`, false},
 		// The platform's rule is a digest suffix, whatever the repository or tag.
 		{"mirrored pre-0002 digest", `{"tenantHostImage":"registry.local:5000/wash@` + oldHostDigest + `","insecureRegistries":` + insecureRegistriesJSON + `}`, true},
 		{"retagged pre-0002 digest", `{"tenantHostImage":"ghcr.io/di-framework/wash:2.8.0@` + oldHostDigest + `","insecureRegistries":` + insecureRegistriesJSON + `}`, true},
