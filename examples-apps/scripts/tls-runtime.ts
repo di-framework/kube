@@ -2,10 +2,12 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { binary, instance, run } from "./platform";
+import { binary, examplesRegistry, instance, run } from "./platform";
 
+// The platform's default tenant host image at @di-framework/platform 6.0.28; keep it equal to
+// DefaultTenantHostImage in internal/platform/pulumi.go.
 const image =
-  "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669";
+  "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:8f0ee9c5a19ae0433e83a553431f1728ddf0a4787059c10e511209263d294537";
 const imported = "ghcr.io/di-framework/wash:2.8.0-wasi-tls";
 const checksums: Record<string, string> = {
   arm64: "5f2a7f451231ff35d8306f874c51606fc9da1e2db56048834a23260f68a78eef",
@@ -41,7 +43,7 @@ export async function prepareTlsRuntime() {
     }
     if (!await succeeds([engine, "inspect", container])) {
       // Bootstrap once before importing the image. Existing clusters and data stay intact.
-      await run([binary, "up", "--name", instance, "--http-port", process.env.DI_HTTP_PORT ?? "28080", "--allow-insecure-registries"]);
+      await run([binary, "up", "--name", instance, "--http-port", process.env.DI_HTTP_PORT ?? "28080", "--allow-insecure-registries", "--insecure-registry", examplesRegistry]);
     }
     const machine = await run([engine, "exec", container, "uname", "-m"], { capture: true });
     const arch = machine === "aarch64" ? "arm64" : machine === "x86_64" ? "amd64" : "";

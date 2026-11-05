@@ -32,7 +32,10 @@ type InstallOptions struct {
 	Timeout                 time.Duration
 	NodePort                int
 	AllowInsecureRegistries bool
-	ValueFiles              []string
+	// InsecureRegistries are --insecure-registry entries, added to the platform
+	// config insecureRegistries list (file or kept) and saved with it.
+	InsecureRegistries []string
+	ValueFiles         []string
 }
 
 type Status struct {

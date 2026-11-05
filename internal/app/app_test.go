@@ -39,6 +39,25 @@ func TestValidateUpOptions(t *testing.T) {
 		{"bad node port", func(value *upOptions) { value.nodePort = 8080 }, "NodePort range"},
 		{"missing node port", func(value *upOptions) { value.nodePort = 0 }, "requires a non-zero --node-port"},
 		{"bad timeout", func(value *upOptions) { value.timeout = 0 }, "--timeout"},
+		{"insecure registry without switch", func(value *upOptions) { value.insecureRegistries = []string{"registry.local:5000"} }, "--insecure-registry needs --allow-insecure-registries"},
+		{"insecure registry with scheme", func(value *upOptions) {
+			value.allowInsecureRegistries = true
+			value.insecureRegistries = []string{"http://registry.local:5000"}
+		}, `--insecure-registry "http://registry.local:5000" must be a registry host[:port]`},
+		{"insecure registry with whitespace", func(value *upOptions) {
+			value.allowInsecureRegistries = true
+			value.insecureRegistries = []string{"registry.local :5000"}
+		}, "must not contain whitespace"},
+		{"empty insecure registry", func(value *upOptions) {
+			value.allowInsecureRegistries = true
+			value.insecureRegistries = []string{""}
+		}, "--insecure-registry must be a registry host[:port], got an empty string"},
+	}
+	withRegistry := valid
+	withRegistry.allowInsecureRegistries = true
+	withRegistry.insecureRegistries = []string{"examples-registry.wasmcloud.svc.cluster.local:5000", "registry.local"}
+	if err := validateUpOptions(withRegistry); err != nil {
+		t.Fatalf("--insecure-registry with the switch rejected: %v", err)
 	}
 	for _, test := range tests {
 		test := test

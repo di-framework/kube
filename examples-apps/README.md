@@ -87,7 +87,10 @@ bun run smoke
 
 Deployment first builds/imports the TLS-capable runtime described below. It
 creates or updates the binary's `local` cluster, enables local HTTP
-registry pulls, and installs a registry with a 2Gi persistent-volume claim in the
+registry pulls (`--allow-insecure-registries` for the shared host, and
+`--insecure-registry examples-registry.wasmcloud.svc.cluster.local:5000` so tenant
+hosts may pull from the examples registry, which they otherwise reach only over TLS),
+and installs a registry with a 2Gi persistent-volume claim in the
 platform namespace. A temporary loopback port-forward on `127.0.0.1:25001` lets
 ORAS publish components. wasmCloud pulls the same artifacts through the
 registry's internal Kubernetes service. The port-forward closes after deployment;
@@ -404,7 +407,8 @@ The runtime registers the TLS resources only when that feature is compiled in.
 
 `deploy` runs `scripts/tls-runtime.ts` before upgrading Helm when `node-tls` is
 among the selected apps, or when `DI_TLS_RUNTIME=always` is set. The helper pulls
-`ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669`
+`ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:8f0ee9c5a19ae0433e83a553431f1728ddf0a4787059c10e511209263d294537`
+(the tenant host image `di-framework-kube up` pins, the platform's default at 6.0.28)
 and imports it as `ghcr.io/di-framework/wash:2.8.0-wasi-tls` into the selected
 `kubesolo-$DI_KUBE_NAME` container's `k8s.io` containerd namespace. It downloads a
 checksum-verified static `ctr` from containerd **2.2.0** and uses `images import --local`

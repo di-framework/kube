@@ -5,6 +5,12 @@ export const workspace = resolve(import.meta.dir, "..");
 const localBinary = resolve(workspace, "../bin/di-framework-kube");
 export const binary = process.env.DI_KUBE_BIN ?? (existsSync(localBinary) ? localBinary : "di-framework-kube");
 export const instance = process.env.DI_KUBE_NAME ?? "local";
+// `di-framework-kube up` installs into this namespace by default; the helpers never override it.
+export const namespace = "wasmcloud";
+// The in-cluster examples registry as workload references spell it (di-framework.deploy.toml,
+// `pull`). Tenant hosts may pull over plain HTTP only from exact `insecureRegistries` entries,
+// so every `up` here passes it with --insecure-registry (kube#8).
+export const examplesRegistry = `examples-registry.${namespace}.svc.cluster.local:5000`;
 
 export async function run(args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv; capture?: boolean } = {}) {
   const child = Bun.spawn(args, {
