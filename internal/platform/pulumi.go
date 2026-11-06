@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -70,17 +71,73 @@ func preAllowlistHostImage(image string) bool {
 	return false
 }
 
+// defaultTenantHostImageSince is the first platform release whose
+// NATS_CREDENTIALS_HOST_IMAGE_DIGESTS lists DefaultTenantHostImage. An older release pinned
+// with --platform-package fails closed on it, so a previous default is kept there.
+var defaultTenantHostImageSince = [3]int{6, 0, 29}
+
+// platformPackageVersion returns the MAJOR.MINOR.PATCH of an @di-framework/platform@<version>
+// spec, ignoring a pre-release suffix. ok is false for a file: tarball or any other form.
+func platformPackageVersion(pkg string) (v [3]int, ok bool) {
+	spec, found := strings.CutPrefix(pkg, "@di-framework/platform@")
+	if !found {
+		return v, false
+	}
+	m := regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-|$)`).FindStringSubmatch(spec)
+	if m == nil {
+		return v, false
+	}
+	for i := range v {
+		n, err := strconv.Atoi(m[i+1])
+		if err != nil {
+			return v, false
+		}
+		v[i] = n
+	}
+	return v, true
+}
+
+// compareVersions orders two MAJOR.MINOR.PATCH versions: negative when a is older than b.
+func compareVersions(a, b [3]int) int {
+	for i := range a {
+		if a[i] != b[i] {
+			return a[i] - b[i]
+		}
+	}
+	return 0
+}
+
+// listsDefaultTenantHostImage reports whether pkg is known to list DefaultTenantHostImage:
+// the default package, or a published release at or after defaultTenantHostImageSince. A
+// file: tarball's version is unknown, so it does not count.
+func listsDefaultTenantHostImage(pkg string) bool {
+	if pkg == "" || pkg == DefaultPlatformPackage {
+		return true
+	}
+	v, ok := platformPackageVersion(pkg)
+	return ok && compareVersions(v, defaultTenantHostImageSince) >= 0
+}
+
 // applyTenantHostImage fills an unset tenantHostImage with the default and moves a
 // previous CLI default, saved or set in platform.json, to the current one. A move rolls
-// every tenant host, so it is announced on w.
-func applyTenantHostImage(w io.Writer, config map[string]any) {
+// every tenant host, so it is announced on w. When pkg is a release that does not list the
+// current default, the previous default is kept: the user pinned a package that only knows
+// the earlier image, and the platform fails closed on a digest it does not list.
+func applyTenantHostImage(w io.Writer, config map[string]any, pkg string) {
 	image, _ := config["tenantHostImage"].(string)
-	if slices.Contains(previousTenantHostImages, image) {
-		fmt.Fprintf(w, "notice: tenantHostImage %s is an earlier di-framework-kube default; replacing it with %s, which rolls every tenant host\n", image, DefaultTenantHostImage)
-	}
-	if image == "" || image == DefaultTenantHostImage || slices.Contains(previousTenantHostImages, image) {
+	if image == "" || image == DefaultTenantHostImage {
 		config["tenantHostImage"] = DefaultTenantHostImage
+		return
 	}
+	if !slices.Contains(previousTenantHostImages, image) {
+		return
+	}
+	if !listsDefaultTenantHostImage(pkg) {
+		fmt.Fprintf(w, "notice: keeping tenantHostImage %s, an earlier di-framework-kube default, because --platform-package %s is not a published release at or after %d.%d.%d, the first that lists %s; a tenant registry gets its own NATS account only on a host image the package lists\n", image, pkg, defaultTenantHostImageSince[0], defaultTenantHostImageSince[1], defaultTenantHostImageSince[2], DefaultTenantHostImage)
+		return
+	}
+	fmt.Fprintf(w, "notice: tenantHostImage %s is an earlier di-framework-kube default; replacing it with %s, which rolls every tenant host\n", image, DefaultTenantHostImage)
+	config["tenantHostImage"] = DefaultTenantHostImage
 }
 
 // The wrapper contains no infrastructure definitions: both entrypoints use this package.
@@ -506,7 +563,7 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 		}
 		values = merge(values, value)
 	}
-	applyTenantHostImage(writerOrDiscard(p.Stderr), config)
+	applyTenantHostImage(writerOrDiscard(p.Stderr), config, pkg)
 	warnPreAllowlistHostImage(writerOrDiscard(p.Stderr), insecureRegistries, config["tenantHostImage"])
 	if _, ok := config["networkPolicyEngine"]; !ok {
 		engine := p.NetworkPolicyEngine

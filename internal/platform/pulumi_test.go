@@ -624,24 +624,64 @@ func parseVersion(t *testing.T, version string) [3]int {
 	return v
 }
 
-func compareVersions(a, b [3]int) int {
-	for i := range a {
-		if a[i] != b[i] {
-			return a[i] - b[i]
-		}
-	}
-	return 0
-}
-
 func TestDefaultPlatformPackageIsPinned(t *testing.T) {
-	// 6.0.29 is the release whose DEFAULT_HOST_IMAGE is DefaultTenantHostImage (listed for
-	// NATS credentials since 6.0.20); any exact later version passes.
+	// 6.0.29 is the release whose DEFAULT_HOST_IMAGE is DefaultTenantHostImage, the first
+	// that lists it for NATS credentials; any exact later version passes.
 	version, ok := strings.CutPrefix(DefaultPlatformPackage, "@di-framework/platform@")
 	if !ok {
 		t.Fatal(DefaultPlatformPackage)
 	}
 	if compareVersions(parseVersion(t, version), parseVersion(t, "6.0.29")) < 0 {
 		t.Fatalf("DefaultPlatformPackage %s is older than 6.0.29", DefaultPlatformPackage)
+	}
+	if compareVersions(parseVersion(t, version), defaultTenantHostImageSince) < 0 {
+		t.Fatalf("DefaultPlatformPackage %s predates defaultTenantHostImageSince %v", DefaultPlatformPackage, defaultTenantHostImageSince)
+	}
+}
+
+func TestPlatformPackageVersion(t *testing.T) {
+	for _, tc := range []struct {
+		pkg  string
+		want [3]int
+		ok   bool
+	}{
+		{"@di-framework/platform@6.0.29", [3]int{6, 0, 29}, true},
+		{"@di-framework/platform@6.0.100", [3]int{6, 0, 100}, true},
+		{"@di-framework/platform@7.1.2-rc.1", [3]int{7, 1, 2}, true},
+		{"@di-framework/platform@6.0", [3]int{}, false},
+		{"@di-framework/platform@^6.0.29", [3]int{}, false},
+		{"@di-framework/platform@latest", [3]int{}, false},
+		{"file:/tmp/di-framework-platform-6.0.29.tgz", [3]int{}, false},
+		{"6.0.29", [3]int{}, false},
+		{"", [3]int{}, false},
+	} {
+		got, ok := platformPackageVersion(tc.pkg)
+		if got != tc.want || ok != tc.ok {
+			t.Fatalf("platformPackageVersion(%q) = %v, %v, want %v, %v", tc.pkg, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
+func TestListsDefaultTenantHostImage(t *testing.T) {
+	for _, tc := range []struct {
+		pkg  string
+		want bool
+	}{
+		{"", true},
+		{DefaultPlatformPackage, true},
+		{"@di-framework/platform@6.0.29", true},
+		{"@di-framework/platform@6.0.30", true},
+		{"@di-framework/platform@6.1.0", true},
+		{"@di-framework/platform@7.0.0-rc.1", true},
+		{"@di-framework/platform@6.0.28", false},
+		{"@di-framework/platform@6.0.13", false},
+		{"@di-framework/platform@5.9.99", false},
+		// A tarball's version is unknown, so the user's explicit image stands.
+		{"file:/tmp/di-framework-platform-6.0.29.tgz", false},
+	} {
+		if got := listsDefaultTenantHostImage(tc.pkg); got != tc.want {
+			t.Fatalf("listsDefaultTenantHostImage(%q) = %v, want %v", tc.pkg, got, tc.want)
+		}
 	}
 }
 
@@ -1036,6 +1076,85 @@ func TestPlatformConfigPassesBackingServiceClasses(t *testing.T) {
 }
 
 const oldHostDigest = "sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669"
+
+func TestPreviousDefaultImageFollowsPlatformPackage(t *testing.T) {
+	// The 6.0.28 default is swapped for the current one only when the chosen package lists
+	// the current one; an older pin keeps the user's image, since that package fails closed
+	// on a digest it does not list.
+	previous := "ghcr.io/di-framework/wash:2.8.0-wasi-tls@" + platform6028HostDigest
+	swapped := "notice: tenantHostImage " + previous + " is an earlier di-framework-kube default; replacing it with " + DefaultTenantHostImage + ", which rolls every tenant host\n"
+	kept := func(pkg string) string {
+		return "notice: keeping tenantHostImage " + previous + ", an earlier di-framework-kube default, because --platform-package " + pkg + " is not a published release at or after 6.0.29, the first that lists " + DefaultTenantHostImage + "; a tenant registry gets its own NATS account only on a host image the package lists\n"
+	}
+	for _, tc := range []struct {
+		name, pkg, wantImage, wantNotice string
+	}{
+		{"default package", "", DefaultTenantHostImage, swapped},
+		{"pinned 6.0.29", "@di-framework/platform@6.0.29", DefaultTenantHostImage, swapped},
+		{"pinned later", "@di-framework/platform@6.1.0", DefaultTenantHostImage, swapped},
+		{"pinned 6.0.28", "@di-framework/platform@6.0.28", previous, kept("@di-framework/platform@6.0.28")},
+	} {
+		for _, source := range []string{"platform.json", "saved"} {
+			t.Run(tc.name+" "+source, func(t *testing.T) {
+				p, opts := objectKeyTestPulumi(t)
+				p.Package = tc.pkg
+				var stderr bytes.Buffer
+				p.Stderr = &stderr
+				if source == "saved" {
+					if err := os.WriteFile(filepath.Join(p.Directory, "Pulumi.dev.yaml"), []byte(`{"config":{"di-framework-kube:tenantHostImage":"`+previous+`"}}`), 0600); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					writePlatformConfig(t, &p, `{"tenantHostImage":"`+previous+`"}`)
+				}
+				if _, err := p.prepare(opts); err != nil {
+					t.Fatal(err)
+				}
+				if stderr.String() != tc.wantNotice {
+					t.Fatalf("stderr = %q, want %q", stderr.String(), tc.wantNotice)
+				}
+				if got := stackConfigValue(t, p.Directory, "tenantHostImage"); got != tc.wantImage {
+					t.Fatalf("tenantHostImage = %v, want %s", got, tc.wantImage)
+				}
+			})
+		}
+	}
+	t.Run("tarball keeps the explicit image", func(t *testing.T) {
+		p, opts := objectKeyTestPulumi(t)
+		tarball := filepath.Join(t.TempDir(), "di-framework-platform-6.0.29.tgz")
+		if err := os.WriteFile(tarball, []byte("build"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		p.Package = "file:" + tarball
+		var stderr bytes.Buffer
+		p.Stderr = &stderr
+		writePlatformConfig(t, &p, `{"tenantHostImage":"`+previous+`"}`)
+		if _, err := p.prepare(opts); err != nil {
+			t.Fatal(err)
+		}
+		if stderr.String() != kept(p.Package) {
+			t.Fatalf("stderr = %q, want %q", stderr.String(), kept(p.Package))
+		}
+		if got := stackConfigValue(t, p.Directory, "tenantHostImage"); got != previous {
+			t.Fatalf("tenantHostImage = %v, want %s", got, previous)
+		}
+	})
+	t.Run("older package still fills an unset image", func(t *testing.T) {
+		p, opts := objectKeyTestPulumi(t)
+		p.Package = "@di-framework/platform@6.0.28"
+		var stderr bytes.Buffer
+		p.Stderr = &stderr
+		if _, err := p.prepare(opts); err != nil {
+			t.Fatal(err)
+		}
+		if stderr.Len() != 0 {
+			t.Fatalf("stderr = %q", stderr.String())
+		}
+		if got := stackConfigValue(t, p.Directory, "tenantHostImage"); got != DefaultTenantHostImage {
+			t.Fatalf("tenantHostImage = %v, want %s", got, DefaultTenantHostImage)
+		}
+	})
+}
 
 // pre0003HostDigest is the CLI's default from v0.0.5 (platform 6.0.13): patch 0002 only.
 const pre0003HostDigest = "sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad"

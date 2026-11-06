@@ -205,11 +205,23 @@ installs the pinned `@di-framework/platform@6.0.29` from npm:
 di-framework-kube up
 ```
 
-Select another published version with `--platform-package`:
+Select another published version with `--platform-package`. A release before 6.0.29
+does not list the tenant host image this CLI pins (see below), so give it one it lists
+through `--platform-config`, for example the 6.0.28 default:
 
 ```sh
-di-framework-kube up --platform-package @di-framework/platform@6.0.28
+di-framework-kube up --platform-package @di-framework/platform@6.0.28 \
+  --platform-config /absolute/path/platform.json
 ```
+
+```json
+{
+  "tenantHostImage": "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:8f0ee9c5a19ae0433e83a553431f1728ddf0a4787059c10e511209263d294537"
+}
+```
+
+`up` keeps that image, with a notice, as long as the pinned package predates 6.0.29;
+a package at or after 6.0.29, or the default, replaces it with the current default.
 
 The pin moves with this CLI's releases (`DefaultPlatformPackage` in
 `internal/platform/pulumi.go`). Use an exact version; ranges are rejected.
@@ -240,7 +252,10 @@ anonymous on any other. A `tenantHostImage` equal to an earlier CLI default
 (`...@sha256:ee89fd4b...`, before patch 0002, `...@sha256:d88158b0...`, before patch 0003,
 or `...@sha256:8f0ee9c5...`, the 6.0.28 default) is replaced by the current default on the
 next `up`, whether it was saved by an earlier `up` or set in `platform.json`, and `up`
-prints a one-line notice naming both images. To keep such a build on purpose, reference it in a form the CLI does not match, for
+prints a one-line notice naming both images. The exception is a `--platform-package`
+release before 6.0.29 (or a `file:` tarball, whose version is unknown): it does not list
+the current default, so `up` keeps the earlier one and says so. To keep such a build on
+purpose with the default package, reference it in a form the CLI does not match, for
 example `ghcr.io/di-framework/wash@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad`
 (the `ee89fd4b` build predates patch 0002, so platform 6.0.11 and later refuse it with
 `insecureRegistries`).
@@ -308,9 +323,10 @@ On an instance created by an earlier CLI release, a plain `up` with this release
    v0.0.4 and earlier, `6.0.13` in v0.0.5) to `@di-framework/platform@6.0.29`. Read the
    platform package's own upgrade notes for the releases in between; a tenant registry set
    through `tenantAuth.registry` moves to its own NATS account on the way.
-2. **Rolls every tenant host onto the new default image** (`...@sha256:bbe9587c...`), whether the
-   instance ran the platform's previous default or an earlier CLI default
-   (`...@sha256:ee89fd4b...`, `...@sha256:d88158b0...` or `...@sha256:8f0ee9c5...`). This restarts all tenant workloads.
+2. **Rolls every tenant host onto the new default image** (`...@sha256:bbe9587c...`), whether
+   the instance ran the platform's previous default or an earlier CLI default
+   (`...@sha256:ee89fd4b...`, `...@sha256:d88158b0...` or `...@sha256:8f0ee9c5...`). This
+   restarts all tenant workloads.
 3. **With `--allow-insecure-registries`, ends the tenant hosts' blanket plain-HTTP pulls.** Since
    platform 6.0.11, tenant hosts get only the exact `host[:port]` entries in `insecureRegistries`.
    A workload that pulls from a plain-HTTP registry, such as
