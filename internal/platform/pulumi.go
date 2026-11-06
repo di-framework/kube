@@ -25,17 +25,17 @@ import (
 
 // DefaultPlatformPackage is the shared platform release up installs. Override it with
 // --platform-package @di-framework/platform@<version> or file:<absolute tarball path>.
-const DefaultPlatformPackage = "@di-framework/platform@6.0.28"
+const DefaultPlatformPackage = "@di-framework/platform@6.0.29"
 
 // DefaultTenantHostImage is the published wash image with wasi-tls, patch 0002
 // (--insecure-registry) and patch 0003 (NATS blobstore credentials): the platform's own
-// DEFAULT_HOST_IMAGE at v6.0.28, listed in its NATS_CREDENTIALS_HOST_IMAGE_DIGESTS, which a
+// DEFAULT_HOST_IMAGE at v6.0.29, listed in its NATS_CREDENTIALS_HOST_IMAGE_DIGESTS, which a
 // tenant registry (tenantAuth.registry) needs for its own NATS account. The tag moves on
 // the next publish; this digest is the multi-arch index. A platform-config tenantHostImage
 // replaces it; the platform's matching wasi-tls-exclusive build (platform/tenant-host/README.md)
 // is the other image it knows to carry 0003. Move this pin together with
 // DefaultPlatformPackage: the platform fails closed on a digest it does not list.
-const DefaultTenantHostImage = "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:8f0ee9c5a19ae0433e83a553431f1728ddf0a4787059c10e511209263d294537"
+const DefaultTenantHostImage = "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:bbe9587c508079074d43f4c27c53eadd92ed2825dc3541b7bcbc1f79a4e843a0"
 
 // previousTenantHostImages are values this CLI used to write as
 // DefaultTenantHostImage. A saved copy is the old default, not a user choice,
@@ -46,6 +46,10 @@ var previousTenantHostImages = []string{
 	// Patch 0002 without 0003, the platform's default at 6.0.13: a tenant registry on it
 	// stays anonymous, so platform 6.0.20+ installs should not keep it.
 	"ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad",
+	// Patch 0002 and 0003, the platform's default at 6.0.28 and this CLI's on main between
+	// #16 and #17 (no tagged release): still listed by the platform, replaced so every
+	// instance follows the current default.
+	"ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:8f0ee9c5a19ae0433e83a553431f1728ddf0a4787059c10e511209263d294537",
 }
 
 // preAllowlistHostImageDigests mirrors the platform's PRE_ALLOWLIST_HOST_IMAGE_DIGESTS

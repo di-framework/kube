@@ -4,10 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { binary, examplesRegistry, instance, run } from "./platform";
 
-// The platform's default tenant host image at @di-framework/platform 6.0.28; keep it equal to
+// The platform's default tenant host image at @di-framework/platform 6.0.29; keep it equal to
 // DefaultTenantHostImage in internal/platform/pulumi.go.
 const image =
-  "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:8f0ee9c5a19ae0433e83a553431f1728ddf0a4787059c10e511209263d294537";
+  "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:bbe9587c508079074d43f4c27c53eadd92ed2825dc3541b7bcbc1f79a4e843a0";
 const imported = "ghcr.io/di-framework/wash:2.8.0-wasi-tls";
 const checksums: Record<string, string> = {
   arm64: "5f2a7f451231ff35d8306f874c51606fc9da1e2db56048834a23260f68a78eef",

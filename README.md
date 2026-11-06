@@ -199,7 +199,7 @@ A fresh managed instance with one tenant takes 8–9 minutes to come up on a
 laptop, most of it image pulls and the first tenant host rollout.
 
 Install Node.js, npm, and the Pulumi CLI before running `up`. By default the CLI
-installs the pinned `@di-framework/platform@6.0.28` from npm:
+installs the pinned `@di-framework/platform@6.0.29` from npm:
 
 ```sh
 di-framework-kube up
@@ -208,7 +208,7 @@ di-framework-kube up
 Select another published version with `--platform-package`:
 
 ```sh
-di-framework-kube up --platform-package @di-framework/platform@6.0.27
+di-framework-kube up --platform-package @di-framework/platform@6.0.28
 ```
 
 The pin moves with this CLI's releases (`DefaultPlatformPackage` in
@@ -228,18 +228,19 @@ Use `--platform-config /absolute/path/platform.json` for tenant declarations:
 Updates without this flag preserve existing tenant/user declarations. Supplying
 it replaces those declarations. Unless the file sets `tenantHostImage`, `up` pins
 the tenant host to
-`ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:8f0ee9c5a19ae0433e83a553431f1728ddf0a4787059c10e511209263d294537`,
-the platform's own default at 6.0.28: wash 2.8.0 with wasi-tls, patch 0002
+`ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:bbe9587c508079074d43f4c27c53eadd92ed2825dc3541b7bcbc1f79a4e843a0`,
+the platform's own default at 6.0.29: wash 2.8.0 with wasi-tls, patch 0002
 (`--insecure-registry`) and patch 0003 (NATS blobstore credentials, which a tenant registry
 set through `tenantAuth.registry` needs for its own NATS account). For exclusive instances,
 set `tenantHostImage` to the platform's matching `wasi-tls-exclusive` build,
-`ghcr.io/di-framework/wash:2.8.0-wasi-tls-exclusive@sha256:6fea016378c3c6313427f2d6df0fed5ca369ab8f5676eb49d99844625312bb80`
-at 6.0.28; these two are the only images the platform knows to carry patch 0003, and a
-tenant registry stays anonymous on any other. A `tenantHostImage` equal to an earlier CLI
-default (`...@sha256:ee89fd4b...`, before patch 0002, or `...@sha256:d88158b0...`, before
-patch 0003) is replaced by the current default on the next `up`, whether it was saved by an
-earlier `up` or set in `platform.json`, and `up` prints a one-line notice naming both
-images. To keep such a build on purpose, reference it in a form the CLI does not match, for
+`ghcr.io/di-framework/wash:2.8.0-wasi-tls-exclusive@sha256:fb1d4bd2d4cd2e3a9fd6b611121bdac26d1b5ca95896e5a4acfbb35439dc0465`
+at 6.0.29; these two are the current images the platform lists for patch 0003 (it also
+still lists the 6.0.28 pair, `8f0ee9c5` and `6fea0163`), and a tenant registry stays
+anonymous on any other. A `tenantHostImage` equal to an earlier CLI default
+(`...@sha256:ee89fd4b...`, before patch 0002, `...@sha256:d88158b0...`, before patch 0003,
+or `...@sha256:8f0ee9c5...`, the 6.0.28 default) is replaced by the current default on the
+next `up`, whether it was saved by an earlier `up` or set in `platform.json`, and `up`
+prints a one-line notice naming both images. To keep such a build on purpose, reference it in a form the CLI does not match, for
 example `ghcr.io/di-framework/wash@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad`
 (the `ee89fd4b` build predates patch 0002, so platform 6.0.11 and later refuse it with
 `insecureRegistries`).
@@ -304,12 +305,12 @@ and your application registry. Cluster creation/deletion remains owned by this C
 On an instance created by an earlier CLI release, a plain `up` with this release:
 
 1. **Upgrades the platform package** from the old pin (`@di-framework/platform@6.0.2` in
-   v0.0.4 and earlier, `6.0.13` in v0.0.5) to `@di-framework/platform@6.0.28`. Read the
+   v0.0.4 and earlier, `6.0.13` in v0.0.5) to `@di-framework/platform@6.0.29`. Read the
    platform package's own upgrade notes for the releases in between; a tenant registry set
    through `tenantAuth.registry` moves to its own NATS account on the way.
-2. **Rolls every tenant host onto the new default image** (`...@sha256:8f0ee9c5...`), whether the
+2. **Rolls every tenant host onto the new default image** (`...@sha256:bbe9587c...`), whether the
    instance ran the platform's previous default or an earlier CLI default
-   (`...@sha256:ee89fd4b...` or `...@sha256:d88158b0...`). This restarts all tenant workloads.
+   (`...@sha256:ee89fd4b...`, `...@sha256:d88158b0...` or `...@sha256:8f0ee9c5...`). This restarts all tenant workloads.
 3. **With `--allow-insecure-registries`, ends the tenant hosts' blanket plain-HTTP pulls.** Since
    platform 6.0.11, tenant hosts get only the exact `host[:port]` entries in `insecureRegistries`.
    A workload that pulls from a plain-HTTP registry, such as
@@ -356,14 +357,14 @@ npm pack --pack-destination /tmp
 # In di-framework-kube:
 go run ./cmd/di-framework-kube up --name shared-test \
   --http-port 28089 \
-  --platform-package file:/tmp/di-framework-platform-6.0.28.tgz
+  --platform-package file:/tmp/di-framework-platform-6.0.29.tgz
 ```
 
 Use the filename produced by `npm pack` if the package version differs. `up` copies
 the tarball into the project as `vendor/platform-<sha256>.tgz` and depends on that
 copy, so rebuilding the tarball at the same path and version and rerunning `up`
 installs the new build. To check which build is installed, compare
-`shasum -a 256 /tmp/di-framework-platform-6.0.28.tgz` with the `vendor/` file name
+`shasum -a 256 /tmp/di-framework-platform-6.0.29.tgz` with the `vendor/` file name
 under `<state-dir>/<name>/platform`.
 
 ### Known limitations

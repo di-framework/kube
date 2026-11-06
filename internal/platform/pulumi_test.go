@@ -634,14 +634,14 @@ func compareVersions(a, b [3]int) int {
 }
 
 func TestDefaultPlatformPackageIsPinned(t *testing.T) {
-	// 6.0.28 is the release whose DEFAULT_HOST_IMAGE is DefaultTenantHostImage (listed for
+	// 6.0.29 is the release whose DEFAULT_HOST_IMAGE is DefaultTenantHostImage (listed for
 	// NATS credentials since 6.0.20); any exact later version passes.
 	version, ok := strings.CutPrefix(DefaultPlatformPackage, "@di-framework/platform@")
 	if !ok {
 		t.Fatal(DefaultPlatformPackage)
 	}
-	if compareVersions(parseVersion(t, version), parseVersion(t, "6.0.28")) < 0 {
-		t.Fatalf("DefaultPlatformPackage %s is older than 6.0.28", DefaultPlatformPackage)
+	if compareVersions(parseVersion(t, version), parseVersion(t, "6.0.29")) < 0 {
+		t.Fatalf("DefaultPlatformPackage %s is older than 6.0.29", DefaultPlatformPackage)
 	}
 }
 
@@ -668,8 +668,8 @@ func TestCompareVersions(t *testing.T) {
 
 func TestAnnouncesPreviousDefaultImageSwap(t *testing.T) {
 	// Every earlier CLI default is announced and replaced, not only the oldest.
-	if len(previousTenantHostImages) < 2 {
-		t.Fatalf("previousTenantHostImages = %v, want the ee89fd4b and d88158b0 defaults", previousTenantHostImages)
+	if len(previousTenantHostImages) < 3 {
+		t.Fatalf("previousTenantHostImages = %v, want the ee89fd4b, d88158b0 and 8f0ee9c5 defaults", previousTenantHostImages)
 	}
 	for _, old := range previousTenantHostImages {
 		notice := "notice: tenantHostImage " + old + " is an earlier di-framework-kube default; replacing it with " + DefaultTenantHostImage + ", which rolls every tenant host\n"
@@ -1040,6 +1040,10 @@ const oldHostDigest = "sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c
 // pre0003HostDigest is the CLI's default from v0.0.5 (platform 6.0.13): patch 0002 only.
 const pre0003HostDigest = "sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad"
 
+// platform6028HostDigest is the CLI's default on main after #16 (platform 6.0.28): patch
+// 0002 and 0003.
+const platform6028HostDigest = "sha256:8f0ee9c5a19ae0433e83a553431f1728ddf0a4787059c10e511209263d294537"
+
 func TestDefaultTenantHostImageSupportsAllowlist(t *testing.T) {
 	if preAllowlistHostImage(DefaultTenantHostImage) {
 		t.Fatalf("DefaultTenantHostImage %s is on the platform's pre-0002 list", DefaultTenantHostImage)
@@ -1060,7 +1064,7 @@ func TestDefaultTenantHostImageSupportsAllowlist(t *testing.T) {
 			t.Fatalf("previous default %s is listed twice", image)
 		}
 	}
-	for _, digest := range []string{oldHostDigest, pre0003HostDigest} {
+	for _, digest := range []string{oldHostDigest, pre0003HostDigest, platform6028HostDigest} {
 		if !slices.Contains(previousTenantHostImages, "ghcr.io/di-framework/wash:2.8.0-wasi-tls@"+digest) {
 			t.Fatalf("previous defaults %v lack %s", previousTenantHostImages, digest)
 		}
@@ -1096,6 +1100,7 @@ func TestWarnsPre0002HostImageWithInsecureRegistries(t *testing.T) {
 		// The old CLI defaults are replaced by the current one, so they do not warn.
 		{"old CLI default", `{"tenantHostImage":"ghcr.io/di-framework/wash:2.8.0-wasi-tls@` + oldHostDigest + `","insecureRegistries":` + insecureRegistriesJSON + `}`, false},
 		{"pre-0003 CLI default", `{"tenantHostImage":"ghcr.io/di-framework/wash:2.8.0-wasi-tls@` + pre0003HostDigest + `","insecureRegistries":` + insecureRegistriesJSON + `}`, false},
+		{"6.0.28 CLI default", `{"tenantHostImage":"ghcr.io/di-framework/wash:2.8.0-wasi-tls@` + platform6028HostDigest + `","insecureRegistries":` + insecureRegistriesJSON + `}`, false},
 		// The platform's rule is a digest suffix, whatever the repository or tag.
 		{"mirrored pre-0002 digest", `{"tenantHostImage":"registry.local:5000/wash@` + oldHostDigest + `","insecureRegistries":` + insecureRegistriesJSON + `}`, true},
 		{"retagged pre-0002 digest", `{"tenantHostImage":"ghcr.io/di-framework/wash:2.8.0@` + oldHostDigest + `","insecureRegistries":` + insecureRegistriesJSON + `}`, true},
