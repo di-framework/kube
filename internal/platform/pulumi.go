@@ -71,34 +71,54 @@ func preAllowlistHostImage(image string) bool {
 	return false
 }
 
-// defaultTenantHostImageSince is the first platform release whose
-// NATS_CREDENTIALS_HOST_IMAGE_DIGESTS lists DefaultTenantHostImage. An older release pinned
-// with --platform-package fails closed on it, so a previous default is kept there.
-var defaultTenantHostImageSince = [3]int{6, 0, 29}
+// platformVersion orders published @di-framework/platform releases: MAJOR, MINOR, PATCH and
+// a final 1 for a release or 0 for a pre-release, which semver puts below its release.
+type platformVersion [4]int
 
-// platformPackageVersion returns the MAJOR.MINOR.PATCH of an @di-framework/platform@<version>
-// spec, ignoring a pre-release suffix. ok is false for a file: tarball or any other form.
-func platformPackageVersion(pkg string) (v [3]int, ok bool) {
+// releaseVersion is the platformVersion of an exact MAJOR.MINOR.PATCH release.
+func releaseVersion(major, minor, patch int) platformVersion {
+	return platformVersion{major, minor, patch, 1}
+}
+
+// String formats a platformVersion as MAJOR.MINOR.PATCH, with "-pre" for a pre-release.
+func (v platformVersion) String() string {
+	s := fmt.Sprintf("%d.%d.%d", v[0], v[1], v[2])
+	if v[3] == 0 {
+		s += "-pre"
+	}
+	return s
+}
+
+// platformVersionPattern matches the exact version a --platform-package npm spec must
+// carry: MAJOR.MINOR.PATCH with an optional pre-release suffix. Ranges and dist-tags do not.
+var platformVersionPattern = regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)(-[A-Za-z0-9.-]+)?$`)
+
+// platformPackageVersion returns the version of an @di-framework/platform@<version> spec.
+// ok is false for a file: tarball or any other form.
+func platformPackageVersion(pkg string) (v platformVersion, ok bool) {
 	spec, found := strings.CutPrefix(pkg, "@di-framework/platform@")
 	if !found {
 		return v, false
 	}
-	m := regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-|$)`).FindStringSubmatch(spec)
+	m := platformVersionPattern.FindStringSubmatch(spec)
 	if m == nil {
 		return v, false
 	}
-	for i := range v {
+	for i := 0; i < 3; i++ {
 		n, err := strconv.Atoi(m[i+1])
 		if err != nil {
 			return v, false
 		}
 		v[i] = n
 	}
+	if m[4] == "" {
+		v[3] = 1
+	}
 	return v, true
 }
 
-// compareVersions orders two MAJOR.MINOR.PATCH versions: negative when a is older than b.
-func compareVersions(a, b [3]int) int {
+// compareVersions orders two platform versions: negative when a is older than b.
+func compareVersions(a, b platformVersion) int {
 	for i := range a {
 		if a[i] != b[i] {
 			return a[i] - b[i]
@@ -107,37 +127,94 @@ func compareVersions(a, b [3]int) int {
 	return 0
 }
 
-// listsDefaultTenantHostImage reports whether pkg is known to list DefaultTenantHostImage:
-// the default package, or a published release at or after defaultTenantHostImageSince. A
-// file: tarball's version is unknown, so it does not count.
-func listsDefaultTenantHostImage(pkg string) bool {
-	if pkg == "" || pkg == DefaultPlatformPackage {
-		return true
-	}
-	v, ok := platformPackageVersion(pkg)
-	return ok && compareVersions(v, defaultTenantHostImageSince) >= 0
+// cliDefaultHostImage is an image this CLI has pinned as DefaultTenantHostImage and the first
+// platform release whose NATS_CREDENTIALS_HOST_IMAGE_DIGESTS lists it, which a tenant
+// registry (tenantAuth.registry) needs for its own NATS account. listed is false when no
+// release lists it: the platform keeps that registry anonymous on it, with only a
+// controller log warning.
+type cliDefaultHostImage struct {
+	image  string
+	listed bool
+	since  platformVersion
 }
 
-// applyTenantHostImage fills an unset tenantHostImage with the default and moves a
-// previous CLI default, saved or set in platform.json, to the current one. A move rolls
-// every tenant host, so it is announced on w. When pkg is a release that does not list the
-// current default, the previous default is kept: the user pinned a package that only knows
-// the earlier image, and the platform fails closed on a digest it does not list.
+// cliDefaultHostImages are this CLI's default host images, oldest first; the last is
+// DefaultTenantHostImage and the rest are previousTenantHostImages. Each since was read
+// from platform/platform/src/tenancy/registry-nats.ts at the platform tags: 8f0ee9c5 is
+// absent at v6.0.19 and present from v6.0.20, bbe9587c from v6.0.29, and no tag lists
+// ee89fd4b or d88158b0 (neither carries patch 0003).
+var cliDefaultHostImages = []cliDefaultHostImage{
+	{image: "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:ee89fd4bce4f9f35f4cd09c63d3cbdd07bea3071b5d372f82c9f49b9741c3669"},
+	{image: "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad"},
+	{image: "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:8f0ee9c5a19ae0433e83a553431f1728ddf0a4787059c10e511209263d294537", listed: true, since: releaseVersion(6, 0, 20)},
+	{image: DefaultTenantHostImage, listed: true, since: releaseVersion(6, 0, 29)},
+}
+
+// listedDefaultHostImageFor returns the newest CLI default host image that platform release
+// v lists for NATS credentials, or "" when v predates every listed one (before 6.0.20, where
+// a tenant registry has no NATS account of its own).
+func listedDefaultHostImageFor(v platformVersion) string {
+	chosen := ""
+	for _, d := range cliDefaultHostImages {
+		if d.listed && compareVersions(v, d.since) >= 0 {
+			chosen = d.image
+		}
+	}
+	return chosen
+}
+
+// describeDefaultHostImageListing says which platform releases list image for NATS
+// credentials, from cliDefaultHostImages.
+func describeDefaultHostImageListing(image string) string {
+	for _, d := range cliDefaultHostImages {
+		if d.image != image {
+			continue
+		}
+		if d.listed {
+			return fmt.Sprintf("platform %s and later list it for NATS credentials", d.since)
+		}
+		break
+	}
+	return "no platform release lists it for NATS credentials, so a tenant registry stays anonymous on it"
+}
+
+// applyTenantHostImage sets the tenant host image the CLI manages: an unset tenantHostImage,
+// the current default, or a previous CLI default saved or set in platform.json. A
+// user-supplied image is left alone. For a published --platform-package release the pick
+// is the newest CLI default that release lists for NATS credentials, since the platform
+// keeps a tenant registry anonymous on a digest it does not list; a change of image rolls
+// every tenant host, so it is announced on w. Below 6.0.20 no release lists any default:
+// an unset image gets the current default and a previous one is kept, with a notice. A
+// file: tarball's version is unknown, so it is treated the same way.
 func applyTenantHostImage(w io.Writer, config map[string]any, pkg string) {
 	image, _ := config["tenantHostImage"].(string)
-	if image == "" || image == DefaultTenantHostImage {
-		config["tenantHostImage"] = DefaultTenantHostImage
+	previous := slices.Contains(previousTenantHostImages, image)
+	if image != "" && image != DefaultTenantHostImage && !previous {
 		return
 	}
-	if !slices.Contains(previousTenantHostImages, image) {
-		return
+	target := ""
+	v, versioned := platformPackageVersion(pkg)
+	if versioned {
+		target = listedDefaultHostImageFor(v)
 	}
-	if !listsDefaultTenantHostImage(pkg) {
-		fmt.Fprintf(w, "notice: keeping tenantHostImage %s, an earlier di-framework-kube default, because --platform-package %s is not a published release at or after %d.%d.%d, the first that lists %s; a tenant registry gets its own NATS account only on a host image the package lists\n", image, pkg, defaultTenantHostImageSince[0], defaultTenantHostImageSince[1], defaultTenantHostImageSince[2], DefaultTenantHostImage)
+	switch {
+	case target == "" && image == "":
+		target = DefaultTenantHostImage
+	case target == "" && image == DefaultTenantHostImage:
 		return
+	case target == "":
+		reason := "predates platform 6.0.20, the first release that lists a di-framework-kube default host image for NATS credentials"
+		if !versioned {
+			reason = "has no known platform version"
+		}
+		fmt.Fprintf(w, "notice: keeping tenantHostImage %s, an earlier di-framework-kube default, because --platform-package %s %s; %s. Set tenantHostImage in --platform-config to choose another image.\n", image, pkg, reason, describeDefaultHostImageListing(image))
+		return
+	case previous && image != target:
+		fmt.Fprintf(w, "notice: tenantHostImage %s is an earlier di-framework-kube default; replacing it with %s, which rolls every tenant host\n", image, target)
+	case image == DefaultTenantHostImage && image != target:
+		fmt.Fprintf(w, "notice: tenantHostImage %s is the di-framework-kube default, which --platform-package %s does not list for NATS credentials; replacing it with %s, the newest default it lists, which rolls every tenant host\n", image, pkg, target)
 	}
-	fmt.Fprintf(w, "notice: tenantHostImage %s is an earlier di-framework-kube default; replacing it with %s, which rolls every tenant host\n", image, DefaultTenantHostImage)
-	config["tenantHostImage"] = DefaultTenantHostImage
+	config["tenantHostImage"] = target
 }
 
 // The wrapper contains no infrastructure definitions: both entrypoints use this package.
@@ -492,7 +569,7 @@ func (p Pulumi) prepare(options InstallOptions) (projectIdentity, error) {
 	if strings.HasPrefix(pkg, "file:") {
 		spec = pkg
 	}
-	if (!strings.HasPrefix(pkg, "file:") && (spec == pkg || !regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?$`).MatchString(spec))) || (strings.HasPrefix(pkg, "file:") && !filepath.IsAbs(strings.TrimPrefix(pkg, "file:"))) {
+	if (!strings.HasPrefix(pkg, "file:") && (spec == pkg || !platformVersionPattern.MatchString(spec))) || (strings.HasPrefix(pkg, "file:") && !filepath.IsAbs(strings.TrimPrefix(pkg, "file:"))) {
 		return identity, errors.New("platform package must be @di-framework/platform@<version> or file:<absolute tarball path>")
 	}
 	if strings.HasPrefix(pkg, "file:") {

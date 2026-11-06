@@ -205,23 +205,15 @@ installs the pinned `@di-framework/platform@6.0.29` from npm:
 di-framework-kube up
 ```
 
-Select another published version with `--platform-package`. A release before 6.0.29
-does not list the tenant host image this CLI pins (see below), so give it one it lists
-through `--platform-config`, for example the 6.0.28 default:
+Select another published version with `--platform-package`:
 
 ```sh
-di-framework-kube up --platform-package @di-framework/platform@6.0.28 \
-  --platform-config /absolute/path/platform.json
+di-framework-kube up --platform-package @di-framework/platform@6.0.28
 ```
 
-```json
-{
-  "tenantHostImage": "ghcr.io/di-framework/wash:2.8.0-wasi-tls@sha256:8f0ee9c5a19ae0433e83a553431f1728ddf0a4787059c10e511209263d294537"
-}
-```
-
-`up` keeps that image, with a notice, as long as the pinned package predates 6.0.29;
-a package at or after 6.0.29, or the default, replaces it with the current default.
+A release before 6.0.29 does not list the tenant host image this CLI pins, so `up` pins
+the newest CLI default that release does list instead (`...@sha256:8f0ee9c5...` from
+6.0.20 to 6.0.28, as described with `tenantHostImage` below).
 
 The pin moves with this CLI's releases (`DefaultPlatformPackage` in
 `internal/platform/pulumi.go`). Use an exact version; ranges are rejected.
@@ -252,10 +244,15 @@ anonymous on any other. A `tenantHostImage` equal to an earlier CLI default
 (`...@sha256:ee89fd4b...`, before patch 0002, `...@sha256:d88158b0...`, before patch 0003,
 or `...@sha256:8f0ee9c5...`, the 6.0.28 default) is replaced by the current default on the
 next `up`, whether it was saved by an earlier `up` or set in `platform.json`, and `up`
-prints a one-line notice naming both images. The exception is a `--platform-package`
-release before 6.0.29 (or a `file:` tarball, whose version is unknown): it does not list
-the current default, so `up` keeps the earlier one and says so. To keep such a build on
-purpose with the default package, reference it in a form the CLI does not match, for
+prints a one-line notice naming both images. With a `--platform-package` release that does
+not list the current default, `up` instead uses the newest CLI default that release lists
+(`...@sha256:8f0ee9c5...` from 6.0.20 to 6.0.28), for an unset, saved or earlier-default
+image alike, and the notice names the image chosen. Before 6.0.20 no release lists any of
+them (a tenant registry has no NATS account of its own there): an unset image gets the
+current default and an earlier default is kept, with a notice saying which releases list
+it. A `file:` tarball, whose version is unknown, may not list the current default; it is
+handled the same way. To keep an earlier build on purpose with a release that would
+replace it, reference it in a form the CLI does not match, for
 example `ghcr.io/di-framework/wash@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad`
 (the `ee89fd4b` build predates patch 0002, so platform 6.0.11 and later refuse it with
 `insecureRegistries`).
