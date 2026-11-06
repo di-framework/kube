@@ -251,10 +251,11 @@ image alike, and the notice names the image chosen. Before 6.0.20 no release lis
 default host image (6.0.15-6.0.19 give a tenant registry its own NATS account only on
 other wash builds, set with `tenantHostImage`; before 6.0.15 there is no registry
 account): an unset image gets the current default and an earlier default is kept, and
-`up` prints a notice on every run that the registry stays anonymous on that image, naming
-which releases list it, until `tenantHostImage` names an image the release lists. A
-`file:` tarball, whose version is unknown, may not list the current default; an unset
-image gets it and an earlier default is kept, with the same repeating notice. To keep an
+`up` prints a notice on every run that the registry stays anonymous on that image (for an
+earlier default, naming which releases list it) until `tenantHostImage` names an image the
+release lists. A `file:` tarball, whose version is unknown, may not list the current
+default; an unset image gets it without a notice and an earlier default is kept with the
+same repeating notice. To keep an
 earlier build on purpose with a release that would replace it, reference it in a form the
 CLI does not match, for
 example `ghcr.io/di-framework/wash@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad`
