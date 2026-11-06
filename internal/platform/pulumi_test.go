@@ -1152,6 +1152,9 @@ func TestPreviousDefaultImageFollowsPlatformPackage(t *testing.T) {
 	}
 	const predates = "predates platform 6.0.20, the first release that lists a di-framework-kube default host image for NATS credentials"
 	const unlisted = "no platform release lists it for NATS credentials, so a tenant registry stays anonymous on it"
+	anonymous := func(pkg string) string {
+		return "notice: --platform-package " + pkg + " lists no di-framework-kube default host image for NATS credentials, so a tenant registry stays anonymous on tenantHostImage " + DefaultTenantHostImage + " unless tenantHostImage in --platform-config names an image it lists\n"
+	}
 	const pkg6028, pkg6020, pkg6013, pkg6029rc = "@di-framework/platform@6.0.28", "@di-framework/platform@6.0.20", "@di-framework/platform@6.0.13", "@di-framework/platform@6.0.29-rc.1"
 	tarball := "file:" + filepath.Join(t.TempDir(), "di-framework-platform-6.0.29.tgz")
 	if err := os.WriteFile(strings.TrimPrefix(tarball, "file:"), []byte("build"), 0600); err != nil {
@@ -1170,10 +1173,10 @@ func TestPreviousDefaultImageFollowsPlatformPackage(t *testing.T) {
 		{"6.0.28, current default", pkg6028, DefaultTenantHostImage, v6028, downgraded(pkg6028, v6028)},
 		{"6.0.28, unset", pkg6028, "", v6028, ""},
 		{"6.0.29 pre-release, 6.0.28 default", pkg6029rc, v6028, v6028, ""},
-		{"6.0.19, unset", "@di-framework/platform@6.0.19", "", DefaultTenantHostImage, ""},
+		{"6.0.19, unset", "@di-framework/platform@6.0.19", "", DefaultTenantHostImage, anonymous("@di-framework/platform@6.0.19")},
 		{"6.0.13, pre-0003 default", pkg6013, pre0003, pre0003, kept(pre0003, pkg6013, predates, unlisted)},
 		{"6.0.13, 6.0.28 default", pkg6013, v6028, v6028, kept(v6028, pkg6013, predates, "platform 6.0.20 and later list it for NATS credentials")},
-		{"6.0.13, current default", pkg6013, DefaultTenantHostImage, DefaultTenantHostImage, ""},
+		{"6.0.13, current default", pkg6013, DefaultTenantHostImage, DefaultTenantHostImage, anonymous(pkg6013)},
 		{"tarball, unset", tarball, "", DefaultTenantHostImage, ""},
 		{"tarball, 6.0.28 default", tarball, v6028, v6028, kept(v6028, tarball, "has no known platform version", "platform 6.0.20 and later list it for NATS credentials")},
 		{"6.0.28, user image", pkg6028, "example/wash:local", "example/wash:local", ""},
@@ -1205,14 +1208,20 @@ func TestPreviousDefaultImageFollowsPlatformPackage(t *testing.T) {
 				if got := stackConfigValue(t, p.Directory, "tenantHostImage"); got != tc.wantImage {
 					t.Fatalf("tenantHostImage = %v, want %s", got, tc.wantImage)
 				}
-				// With the image saved, the next up has nothing to change and says nothing;
-				// a platform.json still naming an earlier default is announced again.
+				// With the image saved, the next up has nothing to change and says nothing,
+				// except that a kept earlier default and an unlisted current default are
+				// announced on every up; a platform.json still naming an earlier default is
+				// announced again too.
 				stderr.Reset()
 				if _, err := p.prepare(opts); err != nil {
 					t.Fatal(err)
 				}
-				if source == "saved" && !strings.HasPrefix(tc.wantNotice, "notice: keeping") && stderr.Len() != 0 {
+				repeats := strings.HasPrefix(tc.wantNotice, "notice: keeping") || strings.HasPrefix(tc.wantNotice, "notice: --platform-package")
+				if source == "saved" && !repeats && stderr.Len() != 0 {
 					t.Fatalf("second up printed %q", stderr.String())
+				}
+				if source == "saved" && repeats && stderr.String() != tc.wantNotice {
+					t.Fatalf("second up printed %q, want %q", stderr.String(), tc.wantNotice)
 				}
 			})
 		}

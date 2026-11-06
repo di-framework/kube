@@ -151,8 +151,10 @@ var cliDefaultHostImages = []cliDefaultHostImage{
 }
 
 // listedDefaultHostImageFor returns the newest CLI default host image that platform release
-// v lists for NATS credentials, or "" when v predates every listed one (before 6.0.20, where
-// a tenant registry has no NATS account of its own).
+// v lists for NATS credentials, or "" when v predates every listed one: before 6.0.20 no
+// release lists a CLI default (6.0.15-6.0.19 give a tenant registry its own NATS account
+// only on other wash builds, set with tenantHostImage; before 6.0.15 there is no registry
+// account).
 func listedDefaultHostImageFor(v platformVersion) string {
 	chosen := ""
 	for _, d := range cliDefaultHostImages {
@@ -184,8 +186,9 @@ func describeDefaultHostImageListing(image string) string {
 // is the newest CLI default that release lists for NATS credentials, since the platform
 // keeps a tenant registry anonymous on a digest it does not list; a change of image rolls
 // every tenant host, so it is announced on w. Below 6.0.20 no release lists any default:
-// an unset image gets the current default and a previous one is kept, with a notice. A
-// file: tarball's version is unknown, so it is treated the same way.
+// an unset image gets the current default and a previous one is kept, each with a notice
+// that the registry stays anonymous on it. A file: tarball's version is unknown, so it is
+// treated the same way, without the notice for an unset or current-default image.
 func applyTenantHostImage(w io.Writer, config map[string]any, pkg string) {
 	image, _ := config["tenantHostImage"].(string)
 	previous := slices.Contains(previousTenantHostImages, image)
@@ -198,10 +201,11 @@ func applyTenantHostImage(w io.Writer, config map[string]any, pkg string) {
 		target = listedDefaultHostImageFor(v)
 	}
 	switch {
-	case target == "" && image == "":
+	case target == "" && (image == "" || image == DefaultTenantHostImage):
+		if versioned {
+			fmt.Fprintf(w, "notice: --platform-package %s lists no di-framework-kube default host image for NATS credentials, so a tenant registry stays anonymous on tenantHostImage %s unless tenantHostImage in --platform-config names an image it lists\n", pkg, DefaultTenantHostImage)
+		}
 		target = DefaultTenantHostImage
-	case target == "" && image == DefaultTenantHostImage:
-		return
 	case target == "":
 		reason := "predates platform 6.0.20, the first release that lists a di-framework-kube default host image for NATS credentials"
 		if !versioned {

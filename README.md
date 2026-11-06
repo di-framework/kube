@@ -247,12 +247,16 @@ next `up`, whether it was saved by an earlier `up` or set in `platform.json`, an
 prints a one-line notice naming both images. With a `--platform-package` release that does
 not list the current default, `up` instead uses the newest CLI default that release lists
 (`...@sha256:8f0ee9c5...` from 6.0.20 to 6.0.28), for an unset, saved or earlier-default
-image alike, and the notice names the image chosen. Before 6.0.20 no release lists any of
-them (a tenant registry has no NATS account of its own there): an unset image gets the
-current default and an earlier default is kept, with a notice saying which releases list
-it. A `file:` tarball, whose version is unknown, may not list the current default; it is
-handled the same way. To keep an earlier build on purpose with a release that would
-replace it, reference it in a form the CLI does not match, for
+image alike, and the notice names the image chosen. Before 6.0.20 no release lists a CLI
+default host image (6.0.15-6.0.19 give a tenant registry its own NATS account only on
+other wash builds, set with `tenantHostImage`; before 6.0.15 there is no registry
+account): an unset image gets the current default and an earlier default is kept, and
+`up` prints a notice on every run that the registry stays anonymous on that image, naming
+which releases list it, until `tenantHostImage` names an image the release lists. A
+`file:` tarball, whose version is unknown, may not list the current default; an unset
+image gets it and an earlier default is kept, with the same repeating notice. To keep an
+earlier build on purpose with a release that would replace it, reference it in a form the
+CLI does not match, for
 example `ghcr.io/di-framework/wash@sha256:d88158b0b09edd9fc3e79d787762697c60f65baf134d895529e85d6c47cd80ad`
 (the `ee89fd4b` build predates patch 0002, so platform 6.0.11 and later refuse it with
 `insecureRegistries`).
